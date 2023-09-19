@@ -1,0 +1,147 @@
+---
+title: "GEMS Logger noise tests"
+format: html
+---
+
+```{r}
+library(tidyverse)
+
+data_dir <- "data/GEMS_logger_NF_tests/"
+```
+
+```{r}
+read_GEMS <- function(file) {
+  raw_file <- read_lines(file)
+  data_file <- raw_file[str_starts(raw_file, "\\d+,")]
+  read_csv(I(data_file),
+           col_names = c("hour", "min", "sec", "month", "day", "year", "mass", "current")) |> 
+  mutate(hour = ifelse(str_sub(hour, 1) == "R", as.numeric(str_sub(hour, 3)), hour),
+         current = current*1E-16,
+         pressure = current/0.0801,
+         timestamp = lubridate::make_datetime(year, month, day, hour, min, sec, tz = "America/New_York"))
+}
+```
+
+
+```{r}
+nf0 <- read_GEMS("data/GEMS_logger_NF_tests/GEMS_NF0_2023_09_12.txt")
+nf4 <- read_GEMS("data/GEMS_logger_NF_tests/GEMS_NF4_2023_09_12.txt")
+nf7 <- read_GEMS("data/GEMS_logger_NF_tests/GEMS_NF7_2023_09_12.txt")
+nf7b <- read_GEMS("data/GEMS_logger_NF_tests/GEMS_NF7_2023_09_13.txt")
+nf714 <- read_GEMS("data/GEMS_logger_NF_tests/GEMS_NF7_2023_09_14.txt")
+nf415 <- read_GEMS("data/GEMS_logger_NF_tests/GEMS_NF4_2023_09_15.txt")
+nf015 <- read_GEMS("data/GEMS_logger_NF_tests/GEMS_NF0_2023_09_15.txt")
+nf215 <- read_GEMS("data/GEMS_logger_NF_tests/GEMS_NF2_2023_09_15.txt")
+
+nf2files <- paste0(data_dir, c("GEMS_NF2_2023_09_18_17_23_55.txt", "GEMS_NF2_2023_09_18_23_24_00.txt", "GEMS_NF2_2023_09_19_05_24_03.txt"))
+nf218 <- read_GEMS(nf2files)
+nf219 <- read_GEMS("data/GEMS_logger_NF_tests/GEMS_NF2_2023_09_19_13_08_27.txt")
+```
+
+```{r}
+nf7 |> 
+ggplot(aes(timestamp, current, color = as.factor(mass))) +
+  geom_line()
+```
+
+```{r}
+nf7 |> 
+  filter(current < 1E8) |> 
+ggplot(aes(timestamp, current, color = as.factor(mass))) +
+  geom_line()
+```
+
+```{r}
+nf4 |> 
+  filter(current < 1E8) |> 
+ggplot(aes(timestamp, current, color = as.factor(mass))) +
+  geom_line()
+```
+
+```{r}
+nf0 |> 
+  filter(current < 1E8) |> 
+ggplot(aes(timestamp, current, color = as.factor(mass))) +
+  geom_line()
+```
+
+```{r}
+nf7b |> 
+  filter(current < 1E8) |>
+  filter(timestamp > "2023-09-13 09:05:00") |> 
+ggplot(aes(timestamp, current, color = as.factor(mass))) +
+  geom_line()
+```
+
+```{r}
+nf714 |> 
+  #filter(current < 1E8) |>
+  filter(timestamp > "2023-09-13 09:05:00") |> 
+ggplot(aes(timestamp, current, color = as.factor(mass))) +
+  geom_line()
+```
+
+```{r}
+nf415 |> 
+  #filter(current < 1E8) |>
+  #filter(timestamp > "2023-09-13 09:05:00") |> 
+ggplot(aes(timestamp, current, color = as.factor(mass))) +
+  geom_line() +
+  scale_y_log10()
+```
+
+```{r}
+nf015 |> 
+  #filter(current < 1E8) |>
+  #filter(timestamp > "2023-09-13 09:05:00") |> 
+ggplot(aes(timestamp, current, color = as.factor(mass))) +
+  geom_line() +
+  scale_y_log10()
+```
+
+```{r}
+nf215 |> 
+  #filter(current < 1E8) |>
+  filter(timestamp < "2023-09-15 14:40:00") |> 
+ggplot(aes(timestamp, current, color = as.factor(mass))) +
+  geom_line() +
+  scale_y_log10()
+```
+
+```{r}
+nf415 |> 
+  #filter(current < 1E8) |>
+  #filter(timestamp > "2023-09-13 09:05:00") |> 
+ggplot(aes(timestamp, current, color = as.factor(mass))) +
+  geom_line() +
+  scale_y_log10()
+```
+
+
+```{r}
+nf218 |> 
+  filter(current < 1E-8) |>
+  #filter(timestamp < "2023-09-18 17:38:00") |> 
+ggplot(aes(timestamp, current, color = as.factor(mass))) +
+  geom_line() +
+  scale_y_log10()
+```
+
+```{r}
+nf219 |> 
+  #filter(current < 1E-8) |>
+  #filter(timestamp < "2023-09-18 17:38:00") |> 
+ggplot(aes(timestamp, current, color = as.factor(mass))) +
+  geom_line() +
+  scale_y_log10()
+```
+Noise 
+
+```{r}
+NF4_noise <- nf415 |> 
+  group_by(mass) |> 
+  summarize(across(current, list(mean = mean, sd = sd, rsd = function(current) sd(current) / mean(current))))
+
+NF4_noise
+```
+
