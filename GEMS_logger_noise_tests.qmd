@@ -5,37 +5,25 @@ format: html
 
 ```{r}
 library(tidyverse)
+source("R/gems_functions.R")
 
 data_dir <- "data/GEMS_logger_NF_tests/"
 ```
 
-```{r}
-read_GEMS <- function(file) {
-  raw_file <- read_lines(file)
-  data_file <- raw_file[str_starts(raw_file, "\\d+,")]
-  read_csv(I(data_file),
-           col_names = c("hour", "min", "sec", "month", "day", "year", "mass", "current")) |> 
-  mutate(hour = ifelse(str_sub(hour, 1) == "R", as.numeric(str_sub(hour, 3)), hour),
-         current = current*1E-16,
-         pressure = current/0.0801,
-         timestamp = lubridate::make_datetime(year, month, day, hour, min, sec, tz = "America/New_York"))
-}
-```
-
 
 ```{r}
-nf0 <- read_GEMS("data/GEMS_logger_NF_tests/GEMS_NF0_2023_09_12.txt")
-nf4 <- read_GEMS("data/GEMS_logger_NF_tests/GEMS_NF4_2023_09_12.txt")
-nf7 <- read_GEMS("data/GEMS_logger_NF_tests/GEMS_NF7_2023_09_12.txt")
-nf7b <- read_GEMS("data/GEMS_logger_NF_tests/GEMS_NF7_2023_09_13.txt")
-nf714 <- read_GEMS("data/GEMS_logger_NF_tests/GEMS_NF7_2023_09_14.txt")
-nf415 <- read_GEMS("data/GEMS_logger_NF_tests/GEMS_NF4_2023_09_15.txt")
-nf015 <- read_GEMS("data/GEMS_logger_NF_tests/GEMS_NF0_2023_09_15.txt")
-nf215 <- read_GEMS("data/GEMS_logger_NF_tests/GEMS_NF2_2023_09_15.txt")
+nf0 <- read_gems("data/GEMS_logger_NF_tests/GEMS_NF0_2023_09_12.txt")
+nf4 <- read_gems("data/GEMS_logger_NF_tests/GEMS_NF4_2023_09_12.txt")
+nf7 <- read_gems("data/GEMS_logger_NF_tests/GEMS_NF7_2023_09_12.txt")
+nf7b <- read_gems("data/GEMS_logger_NF_tests/GEMS_NF7_2023_09_13.txt")
+nf714 <- read_gems("data/GEMS_logger_NF_tests/GEMS_NF7_2023_09_14.txt")
+nf415 <- read_gems("data/GEMS_logger_NF_tests/GEMS_NF4_2023_09_15.txt")
+nf015 <- read_gems("data/GEMS_logger_NF_tests/GEMS_NF0_2023_09_15.txt")
+nf215 <- read_gems("data/GEMS_logger_NF_tests/GEMS_NF2_2023_09_15.txt")
 
 nf2files <- paste0(data_dir, c("GEMS_NF2_2023_09_18_17_23_55.txt", "GEMS_NF2_2023_09_18_23_24_00.txt", "GEMS_NF2_2023_09_19_05_24_03.txt"))
-nf218 <- read_GEMS(nf2files)
-nf219 <- read_GEMS("data/GEMS_logger_NF_tests/GEMS_NF2_2023_09_19_13_08_27.txt")
+nf218 <- read_gems(nf2files)
+nf219 <- read_gems("data/GEMS_logger_NF_tests/GEMS_NF2_2023_09_19_13_08_27.txt")
 ```
 
 ```{r}
