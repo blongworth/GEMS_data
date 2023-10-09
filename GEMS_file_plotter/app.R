@@ -1,7 +1,7 @@
 library(shiny)
 library(tidyverse)
 
-filename <- "C:/Users/brett/Desktop/GEMS_NF2_2023-09-18 17-25-19.txt"
+filename <- "C:/Users/brett/Desktop/GEMS 2023-09-27 14-54-30.txt"
 
 read_GEMS <- function(filename) {
   raw_file <- read_lines(filename)
@@ -25,13 +25,13 @@ ui <- fluidPage(
   plotOutput("gemsPlot", width = "100%"),
   
   # Set filename
-  shinyFilesButton("filename", "Choose File", "Choose a file", multiple = FALSE)
+  #shinyFilesButton("filename", "Choose File", "Choose a file", multiple = FALSE)
 )
 
 # Define server logic required to draw a histogram
 server <- function(input, output, session) {
   
-  fileData <- reactiveFileReader(1000, session, filename, read_GEMS)
+  fileData <- reactiveFileReader(5000, session, filename, read_GEMS)
   
   output$gemsPlot <- renderPlot({
     
