@@ -1,0 +1,77 @@
+---
+title: "GEMS_SMURP"
+format: html
+editor: visual
+---
+
+GEMS SMURP N15 label tests.
+
+```{r}
+library(tidyverse)
+source("R/gems_functions.R")
+```
+
+## Nalgene Control
+
+2023-11-16
+
+Control Nalgene with sediment + seawater, no label. DAQ using PC and old RGASoft software.
+
+```{r}
+df <- read_rgasoft("data/RGASoft/GEMS_test_NF1_SMURP_control_2023-11-17.txt")
+plot_gems(df)
+```
+
+## Nalgene Label
+
+2023-11-18
+
+First Nalgene label experiment. Nalgene with sediment + seawater, with label. DAQ using PC and old RGASoft software.
+
+```{r}
+df <- read_rgasoft("data/RGASoft/GEMS_test_NF1_SMURP_label_2023-11-21.txt")
+plot_gems(df)
+```
+
+## System test
+
+2023-11-27
+
+Testing Teensy DAQ. Background, mostly water pump off.
+
+```{r}
+df <- read_gems("data/GEMS_tests/SerialCapture/Serial_capture_bench_test2023-11-27.txt")
+plot_gems(df)
+```
+
+Lander SD data test. 2023-12-05. Water pump off.
+
+```{r}
+df <- read_gems("data/GEMS_tests/LanderSD/23_12_05_10_56_00.txt")
+plot_gems(df)
+```
+
+## Open Nalgene
+
+2023-12-08
+
+Top of Nalgene open. Using fresh sediment from Wood Neck. Very stinky and fine grained.
+
+```{r}
+df <- read_gems("data/GEMS_tests/SerialCapture/GEMS_test_NF0_SMURP_label_open_2023-12-08.txt")
+plot_gems(df)
+```
+
+## Closed Nalgene
+
+2023-12-11
+
+Repeat of previous experiment with nalgene sealed. Same Wood Neck sediment.
+Power issue during run required reboot of system. Scroll pump failed when
+power lost, swapped for spare. System time breifly off.
+
+```{r}
+df <- read_gems("data/GEMS_tests/SerialCapture/GEMS_test_NF0_SMURP_label_closed_2023-12-11.txt") |> 
+  filter(timestamp > "2023-12-01")
+plot_gems(df)
+```
