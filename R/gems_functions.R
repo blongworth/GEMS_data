@@ -2,9 +2,9 @@
 
 read_gems <- function(file) {
   raw_file <- read_lines(file)
-  raw_file <- str_remove(raw_file, "^R:")
-  data_file <- raw_file[str_starts(raw_file, "\\d+,")]
-  read_csv(I(data_file),
+  gems_raw <- raw_file[str_starts(raw_file, "R:\\d+,")]
+  gems_data <- str_remove(gems_raw, "^R:")
+  read_csv(I(gems_data),
            col_names = c("hour", "min", "sec", "month", "day", "year", "mass", "current")) |> 
   mutate(current = current*1E-16,
          pressure = current/0.0801,
@@ -23,4 +23,82 @@ plot_gems <- function(data, log = TRUE) {
   } else {
     p
   }
+}
+
+
+#' Read SRS RGASoft files
+#' 
+#' Old RGA software tabular format. Watch out for missing spaces causing NA's
+#'
+#' @param filename File to read.
+#'
+#' @return A dataframe of RGA data in long format.
+#' @export
+#'
+read_rgasoft <- function(filename) {
+  
+  # get timestamp
+  ts <- read_lines(filename, n_max = 1)[[1]] |> 
+    mdy_hms()
+  #masses <- read_table(file)
+  # rowlist <- read_lines(filename, skip = 30, n_max = 1) |> 
+  #   str_split("\\s+") 
+  # column_names <- rowlist[[1]]
+  #read_lines(filename, skip = 32) |> 
+  #  str_replace("(\\d)(-)", "$1 $2") |> 
+  read_csv(filename,
+             col_names = c("time_s", "mass_18", "mass_28", "mass_29", "mass_30", "mass_32", "mass_40", "mass_44", "mass_45", "mass_46", "X"), 
+             col_types = cols(
+  time_s = col_number(),
+  mass_18 = col_double(),
+  mass_28 = col_double(),
+  mass_29 = col_double(),
+  mass_30 = col_double(),
+  mass_32 = col_double(),
+  mass_40 = col_double(),
+  mass_44 = col_double(),
+  mass_45 = col_double(),
+  mass_46 = col_double(),
+  X = col_logical()
+), skip = 32) |> 
+    select(-X) |> 
+    mutate(timestamp = ts + time_s)
+}
+
+#' Read fixed width RGASoft files
+#'
+#' @param filename 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+read_rgasoft_ascii <- function(filename) {
+  
+  # get timestamp
+  ts <- read_lines(filename, n_max = 1)[[1]] |> 
+    mdy_hms()
+  #masses <- read_table(file)
+  # rowlist <- read_lines(filename, skip = 30, n_max = 1) |> 
+  #   str_split("\\s+") 
+  # column_names <- rowlist[[1]]
+  #read_lines(filename, skip = 32) |> 
+  #  str_replace("(\\d)(-)", "$1 $2") |> 
+  read_table(filename,
+             col_names = c("time_s", "mass_18", "mass_28", "mass_29", "mass_30", "mass_32", "mass_40", "mass_44", "mass_45", "mass_46", "X"), 
+             col_types = cols(
+  time_s = col_number(),
+  mass_18 = col_double(),
+  mass_28 = col_double(),
+  mass_29 = col_double(),
+  mass_30 = col_double(),
+  mass_32 = col_double(),
+  mass_40 = col_double(),
+  mass_44 = col_double(),
+  mass_45 = col_double(),
+  mass_46 = col_double(),
+  X = col_logical()
+), skip = 32) |> 
+    select(-X) |> 
+    mutate(timestamp = ts + time_s)
 }
