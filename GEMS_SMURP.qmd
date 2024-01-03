@@ -11,26 +11,58 @@ library(tidyverse)
 source("R/gems_functions.R")
 ```
 
-## Nalgene Control
+## First Nalgene Experiment
+
+```{r}
+rga_file <- "data/GEMS_SMURP/GEMS_test_NF1_SMURP_label_2023-11-21.txt"
+control_start <-  as.POSIXct("2023-11-16 14:22:00", tz="UTC")
+label_start <-  as.POSIXct("2023-11-17 11:22:00", tz="UTC")
+df <- read_rgasoft(rga_file) |> 
+  select(!time_s) |> 
+  pivot_longer(cols = starts_with("mass"),
+               names_to = "mass",
+               names_pattern = "mass_(.+)",
+               values_to = "pressure") |> 
+  mutate(experiment = case_when(timestamp < control_start ~ "warmup",
+                                timestamp < label_start ~ "control",
+                                TRUE ~ "label"))
+
+#write_csv(df, "data/GEMS_SMURP/nalgene_SMURP_2023-11-17.csv")
+```
+
+### Warmup
+
+2023-11-16
+
+Warmup and pumpdown. DAQ using PC and old RGASoft software. High values are pump on circulating freshwater from beaker. Low values are pump off.
+
+```{r}
+df |> 
+  filter(experiment == "warmup") |> 
+  plot_gems()
+```
+### Control
 
 2023-11-16
 
 Control Nalgene with sediment + seawater, no label. DAQ using PC and old RGASoft software.
 
 ```{r}
-df <- read_rgasoft("data/RGASoft/GEMS_test_NF1_SMURP_control_2023-11-17.txt")
-plot_gems(df)
+df |> 
+  filter(experiment == "control") |> 
+  plot_gems()
 ```
 
-## Nalgene Label
+### Nalgene Label
 
 2023-11-18
 
 First Nalgene label experiment. Nalgene with sediment + seawater, with label. DAQ using PC and old RGASoft software.
 
 ```{r}
-df <- read_rgasoft("data/RGASoft/GEMS_test_NF1_SMURP_label_2023-11-21.txt")
-plot_gems(df)
+df |> 
+  filter(experiment == "label") |> 
+  plot_gems()
 ```
 
 ## System test
@@ -66,9 +98,7 @@ plot_gems(df)
 
 2023-12-11
 
-Repeat of previous experiment with nalgene sealed. Same Wood Neck sediment.
-Power issue during run required reboot of system. Scroll pump failed when
-power lost, swapped for spare. System time breifly off.
+Repeat of previous experiment with nalgene sealed. Same Wood Neck sediment. Power issue during run required reboot of system. Scroll pump failed when power lost, swapped for spare. System time breifly off.
 
 ```{r}
 df <- read_gems("data/GEMS_tests/SerialCapture/GEMS_test_NF0_SMURP_label_closed_2023-12-11.txt") |> 

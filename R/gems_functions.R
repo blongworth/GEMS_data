@@ -14,7 +14,7 @@ read_gems <- function(file) {
 plot_gems <- function(data, log = TRUE) {
   stopifnot(is.logical(log))
   p <- data |> 
-    ggplot(aes(timestamp, current, color = as.factor(mass))) +
+    ggplot(aes(timestamp, pressure, color = as.factor(mass))) +
     geom_line()
   
   if (log) {
@@ -39,7 +39,7 @@ read_rgasoft <- function(filename) {
   
   # get timestamp
   ts <- read_lines(filename, n_max = 1)[[1]] |> 
-    mdy_hms()
+    lubridate::mdy_hms()
   #masses <- read_table(file)
   # rowlist <- read_lines(filename, skip = 30, n_max = 1) |> 
   #   str_split("\\s+") 
