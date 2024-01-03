@@ -14,7 +14,7 @@ source("R/gems_functions.R")
 ## First Nalgene Experiment
 
 ```{r}
-rga_file <- "data/GEMS_SMURP/GEMS_test_NF1_SMURP_label_2023-11-21.txt"
+rga_file <- "data/RGASoft/GEMS_test_NF1_SMURP_label_2023-11-21.txt"
 control_start <-  as.POSIXct("2023-11-16 14:22:00", tz="UTC")
 label_start <-  as.POSIXct("2023-11-17 11:22:00", tz="UTC")
 df <- read_rgasoft(rga_file) |> 

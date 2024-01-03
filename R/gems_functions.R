@@ -2,7 +2,7 @@
 
 read_gems <- function(file) {
   raw_file <- read_lines(file)
-  gems_raw <- raw_file[str_starts(raw_file, "R:\\d+,")]
+  gems_raw <- raw_file[str_starts(raw_file, "(R:)*\\d+,")]
   gems_data <- str_remove(gems_raw, "^R:")
   read_csv(I(gems_data),
            col_names = c("hour", "min", "sec", "month", "day", "year", "mass", "current")) |> 
