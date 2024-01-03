@@ -1,28 +1,31 @@
 ---
-title: "GEMS_SMURP"
+title: "GEMS Nalgene SMURP Tests"
 format: html
-editor: visual
+self-contained: true
+editor: source
+execute:
+  message: false
+  warning: false
 ---
 
-GEMS SMURP N15 label tests.
+GEMS SMURP N15 label tests and background runs Nov-Dec 2023.
 
 ```{r}
 library(tidyverse)
 source("R/gems_functions.R")
+theme_set(theme_classic())
 ```
 
 ## First Nalgene Experiment
+
+This experiment was run using a PC to control the RGA and DAQ using old RGASoft software. 
+Pressure values are different from the data when using Teensy for DAQ. Likely just an issue when converting from current to pressure.
 
 ```{r}
 rga_file <- "data/RGASoft/GEMS_test_NF1_SMURP_label_2023-11-21.txt"
 control_start <-  as.POSIXct("2023-11-16 14:22:00", tz="UTC")
 label_start <-  as.POSIXct("2023-11-17 11:22:00", tz="UTC")
 df <- read_rgasoft(rga_file) |> 
-  select(!time_s) |> 
-  pivot_longer(cols = starts_with("mass"),
-               names_to = "mass",
-               names_pattern = "mass_(.+)",
-               values_to = "pressure") |> 
   mutate(experiment = case_when(timestamp < control_start ~ "warmup",
                                 timestamp < label_start ~ "control",
                                 TRUE ~ "label"))
@@ -34,7 +37,7 @@ df <- read_rgasoft(rga_file) |>
 
 2023-11-16
 
-Warmup and pumpdown. DAQ using PC and old RGASoft software. High values are pump on circulating freshwater from beaker. Low values are pump off.
+Warmup and pumpdown. High values are pump on circulating freshwater from beaker. Low values are pump off.
 
 ```{r}
 df |> 
@@ -45,7 +48,7 @@ df |>
 
 2023-11-16
 
-Control Nalgene with sediment + seawater, no label. DAQ using PC and old RGASoft software.
+Control Nalgene with sediment + seawater, no label. 
 
 ```{r}
 df |> 
@@ -57,7 +60,7 @@ df |>
 
 2023-11-18
 
-First Nalgene label experiment. Nalgene with sediment + seawater, with label. DAQ using PC and old RGASoft software.
+First Nalgene label experiment. Nalgene with sediment + seawater, with label. 
 
 ```{r}
 df |> 
