@@ -108,3 +108,31 @@ df <- read_gems("data/GEMS_tests/SerialCapture/GEMS_test_NF0_SMURP_label_closed_
   filter(timestamp > "2023-12-01")
 plot_gems(df)
 ```
+
+# Full SMURP experiments
+
+## 2024-04-26
+
+First successful full SMURP experiment. 
+SMURP transferred to large black crate.
+Added XX l of seawater from ESL to bring level to ~3cm from box top.
+Pump installed 
+Inlet filtered with copper LECS-style mesh
+aquarium stone on outlet.
+
+Initial data is background.
+Step on April 23 was due to aquarium stone on outlet falling off. 
+Pressure differential caused increased outgassing.
+
+```{r}
+df <- read_gems("data/GEMS_tests/SerialCapture/GEMS_full_SMURP_NF0_2024-04-22.txt") |> 
+  filter(timestamp > "2023-12-01")
+plot_gems(df)
+```
+
+```{r}
+df |> 
+  filter(mass %in% c(28, 29, 30)) |> 
+  plot_gems()
+```
+
