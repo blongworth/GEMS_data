@@ -125,14 +125,28 @@ Step on April 23 was due to aquarium stone on outlet falling off.
 Pressure differential caused increased outgassing.
 
 ```{r}
+label_start <-  as.POSIXct("2024-04-22 16:40:00")
+no_airstone_start <-  as.POSIXct("2024-04-23 13:33:40")
+
 df <- read_gems("data/GEMS_tests/SerialCapture/GEMS_full_SMURP_NF0_2024-04-22.txt") |> 
-  filter(timestamp > "2023-12-01")
+  mutate(experiment = case_when(timestamp < label_start ~ "control",
+                                timestamp < no_airstone_start ~ "label-airstone",
+                                TRUE ~ "label-no-airstone"))
+
+df |> 
+  filter(mass == 32) |> 
+  select(timestamp, pressure) |> 
+  dygraphs::dygraph()
 plot_gems(df)
+
+df |> 
+  write_csv("data/GEMS_tests/SerialCapture/GEMS_full_SMURP_NF0_proc_2024-04-22.csv")
+
 ```
 
 ```{r}
 df |> 
-  filter(mass %in% c(28, 29, 30)) |> 
+  filter(mass %in% c(29, 30)) |> 
   plot_gems()
 ```
 
