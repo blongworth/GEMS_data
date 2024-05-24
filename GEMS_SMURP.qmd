@@ -12,6 +12,7 @@ GEMS SMURP N15 label tests and background runs Nov-Dec 2023.
 
 ```{r}
 library(tidyverse)
+library(dygraphs)
 source("R/gems_functions.R")
 theme_set(theme_classic())
 ```
@@ -150,3 +151,131 @@ df |>
   plot_gems()
 ```
 
+## 2024-04-30
+
+Closed sided sediment only SMURP control.
+
+Added XX l of seawater from ESL to bring level to ~3cm from box top.
+Pump installed 
+Inlet filtered with copper LECS-style mesh
+
+Initial data is background.
+
+```{r}
+label_start <-  as.POSIXct("2024-04-22 16:40:00")
+
+df <- read_gems("data/GEMS_tests/SerialCapture/GEMS_full_SMURP_sed_only_NF0_2024-04-30.txt") |> 
+  mutate(experiment = case_when(timestamp < label_start ~ "control",
+                                TRUE ~ "label"))
+
+plot_gems(df)
+
+df |> 
+  write_csv("data/GEMS_tests/SerialCapture/GEMS_full_SMURP_sed_only_NF0_proc_2024-04-30.csv")
+```
+
+
+```{r}
+df |> 
+  filter(mass %in% c(29, 30)) |> 
+  pivot_wider(names_from = mass, values_from = pressure, names_prefix = "mass_") |> 
+  select(timestamp, mass_29, mass_30) |> 
+  dygraphs::dygraph()
+```
+
+```{r}
+df |> 
+  filter(mass %in% c(29, 30)) |> 
+  plot_gems()
+```
+
+Firesting data
+
+```{r}
+read_firesting_go2 <- function(file) {
+  cn <- read_lines(file, skip = 15, n_max = 1, 
+                   locale = locale(encoding = 'latin1')) |> 
+    str_split("\t") |>
+    unlist()
+  df <- read_tsv(file, skip = 16)
+  names(df) <- cn
+  df
+}
+```
+
+```{r}
+files <- list.files("data/Firesting", full.names = TRUE)
+sed_files <- files[4:5]
+df <- map(sed_files, read_firesting_go2) |> 
+  bind_rows()
+```
+
+```{r}
+ggplot(df, aes(`Date_Time(YYYY-MM-DD_hh:mm:ss)`, `Oxygen(%air sat.)`)) + 
+  geom_point()
+```
+
+```{r}
+ggplot(df, aes(`Date_Time(YYYY-MM-DD_hh:mm:ss)`, `Temperature(°C)`)) + 
+  geom_point()
+```
+
+```{r}
+write_csv(df, "data/firesting_o2_smurp_sed_only_proc_2024-04-30.csv")
+```
+
+
+## 2024-05-13
+
+Open sided sediment only SMURP control.
+
+Added XX l of seawater from ESL to bring level to ~3cm from box top.
+Pump installed 
+Inlet filtered with copper LECS-style mesh
+
+Initial data is background.
+
+Not much mass 30 response. O2 at 20% when RGA stopped on Friday.
+Left box in sink over weekend, O2 at 0% monday morning.
+
+```{r}
+label_start <-  as.POSIXct("2024-05-13 10:40:00")
+
+df <- read_gems("data/GEMS_tests/SerialCapture/GEMS_full_SMURP_sed_crate_NF0_2024-05-13.txt") |> 
+  mutate(experiment = case_when(timestamp < label_start ~ "control",
+                                TRUE ~ "label"))
+
+plot_gems(df)
+
+df |> 
+  write_csv("data/GEMS_tests/SerialCapture/GEMS_full_SMURP_sed_crate_NF0_proc_2024-05-13.csv")
+```
+
+```{r}
+read_firesting <- function(file) {
+  cn <- read_lines(file, skip = 10, n_max = 1, 
+                   locale = locale(encoding = 'latin1')) |> 
+    str_split("\t") |>
+    unlist()
+  df <- read_tsv(file, skip = 11)
+  names(df) <- cn
+  df
+}
+```
+
+```{r}
+files <- c("data/SMURP_O2_sed_crate_2024-05-13.txt", "data/SMURP_O2_sed_crate_2024-05-15.txt")
+df <- map(files, read_firesting) |> 
+  list_rbind()
+
+write_csv(df, "data/SMURP_O2_sed_crate_proc_2024-05-13.txt")
+```
+
+```{r}
+ggplot(df, aes(`DateTime (YYYY-MM-DD hh:mm:ss)`, `Oxygen (%air sat.)`)) + 
+  geom_line()
+```
+
+```{r}
+dygraph(select(df, `DateTime (YYYY-MM-DD hh:mm:ss)`, `Oxygen (%air sat.)`))
+```
