@@ -3,4 +3,7 @@
 .RData
 .Ruserdata
 data/
+*.pdf
 *.html
+.venv/
+.DS_Store
