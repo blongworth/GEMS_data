@@ -32,7 +32,7 @@ def update_plot():
     plt.title('Real-time Data Streaming')
     plt.legend()
     plt.draw()
-    plt.pause(0.01)
+    plt.pause(0.1)
 
 # Function to read the entire file and plot initial data
 def initial_plot(file_path):
@@ -67,7 +67,6 @@ def monitor_file(file_path):
                         timestamp, mass, value = parse_line(line.strip())
                         print(f"Read line: {line.strip()}")  # Debugging: Check the raw line read
                         print(f"Parsed data - Timestamp: {timestamp}, Mass: {mass}, Value: {value}")  # Debugging: Check parsed data
-
                         
                         if mass not in data_dict:
                             data_dict[mass] = pd.DataFrame(columns=['Timestamp', 'Value'])
@@ -81,8 +80,9 @@ def monitor_file(file_path):
                         # pass  # Skip lines that don't conform to the expected format
                 
                 # Update the plot every 5 seconds
-                time.sleep(2)
+                # update the plot if new data
                 update_plot()
+                time.sleep(2)
                 
                 # Exit if the plot window is closed
                 if not plt.fignum_exists(1):
