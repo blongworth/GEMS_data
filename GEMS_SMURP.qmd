@@ -189,6 +189,13 @@ df |>
   plot_gems()
 ```
 
+### Rate calculations
+
+```{r}
+df_proc <- process_gems()
+```
+
+
 Firesting data
 
 ```{r}
@@ -279,3 +286,299 @@ ggplot(df, aes(`DateTime (YYYY-MM-DD hh:mm:ss)`, `Oxygen (%air sat.)`)) +
 ```{r}
 dygraph(select(df, `DateTime (YYYY-MM-DD hh:mm:ss)`, `Oxygen (%air sat.)`))
 ```
+
+## 2024-08-19 First chamber experiment
+
+Chamber label experiment in sed-only, closed sided crate.
+
+* Installed chamber. Sed-surface 10cm, chamber-surface 5cm.
+* Started pump, purge bubbles. Large initial bubble below screen.
+* Inject 5ml of argon-saturated 20 mmol/L 15NO3- solution.
+* Power outage
+
+```{r}
+label_start <-  as.POSIXct("2024-08-19 13:40:00")
+
+df <- read_gems("data/GEMS_tests/SerialCapture/GEMS_2024-08-19_chamber_sed_closed.txt") |> 
+  mutate(timestamp = ifelse(timestamp > "2024-08-18",
+                            timestamp,
+                            timestamp + 177775450),
+         timestamp = as.POSIXct(timestamp),
+         experiment = case_when(timestamp < label_start ~ "control",
+                                TRUE ~ "label"))
+
+plot_gems(df)
+
+df |> 
+  write_csv("data/GEMS_tests/SerialCapture/GEMS_2024-08-19_chamber_sed_closed_proc.csv")
+```
+
+Calculate slope and rate using Scott's method.
+
+Give each measurement loop an average timestamp and pivot to wide format.
+
+
+```{r}
+df_wide <- rga_wider(df)
+```
+
+Natural nitrogen abundance and saturation concentration
+
+```{r}
+frac_abd_15 <- 0.00367
+frac_abd_14 <- 1 - frac_abd_15
+nit_sat_umol <- 600 # calculate for lab temp, sal, and pressure
+
+```
+
+Plot to find rough background values (should do this programmatically)
+
+```{r}
+df_wide %>% 
+  select(timestamp, mass_28, mass_29, mass_30, mass_40) %>% 
+  dygraph() %>% 
+  dyOptions(logscale = TRUE)
+```
+
+Backgrounds from plot
+
+```{r}
+bg_29 <- 7.4E-12
+bg_30 <- 2.1E-12
+```
+
+Normalized partial pressures and molar concentrations
+
+```{r}
+df_proc <- norm_rga(df_wide, bg_29, bg_30, nit_sat_umol = 600)
+```
+
+Nitrogen normalized argon. Use slope to calculate diffusive loss.
+
+```{r}
+df_proc %>% 
+  select(et, mass_40_28) %>% 
+  mutate(et = as.integer(et)) %>% 
+  dygraph() %>% 
+  dyOptions(logscale = TRUE)
+```
+
+```{r}
+ar <- df_proc %>% 
+  select(et, mass_40_28) %>% 
+  filter(et > 10000,
+         et < 20000)
+```
+
+```{r}
+ar_loss_rate <- coef(lm(mass_40_28 ~ et, data = ar))[2] * 3600 * 24
+```
+
+pick time with even slope
+
+```{r}
+df_proc %>% 
+  select(et, umol_30) %>% 
+  ggplot(aes(et, umol_30)) +
+  geom_line()
+  mutate(et = as.integer(et)) %>% 
+  dygraph() %>% 
+  dy
+%>% 
+  dyOptions(logscale = TRUE)
+```
+
+Use least-squares linear regression to get slope of mass 30 production
+
+```{r}
+sdf <- df_proc %>% 
+  select(et, umol_30) %>% 
+  filter(et > 10000,
+         et < 30000)
+```
+
+Slope (umol/s) of linear fit for inital linear range. Convert to umol/day
+
+```{r}
+umol_30_rate <- coef(lm(umol_30 ~ et, data = sdf))[2] * 3600 * 24
+```
+
+Initial rate of mass 30 production: `umol_30_rate` umol/day.
+
+Rolling slope for instantaneous rate
+
+```{r}
+library(zoo)
+
+df_slope <- df_proc %>% 
+  select(et, umol_30) %>% 
+  mutate(et = as.integer(et)) %>% 
+  filter(et > 10000)
+
+lm_slope <- function(x) {
+  coef(lm(x[,2] ~ x[,1]))[2]
+}
+
+umol_30_rate <- rollapply(data = df_slope,
+                                   width = 20,
+                                   FUN = lm_slope,
+                                   by.column = FALSE) * 3600 * 24
+
+plot(umol_30_rate)
+```
+
+## 2024-08-20 Chamber experiment: Sed only, open crate
+
+Chamber label experiment in sed-only, open sided crate.
+
+* Installed chamber. Sed-surface 10cm, chamber-surface 5cm.
+* Started pump, purge bubbles. Large initial bubble below screen.
+* Inject 5ml of argon-saturated 20 mmol/L 15NO3- solution.
+
+Power outage at 8:30 AM. Past peak. Secondary peak of mass 46. 
+
+```{r}
+label_start <-  as.POSIXct("2024-08-19 13:40:00")
+
+df <- read_gems("data/GEMS_tests/SerialCapture/GEMS_2024-08-20_chamber_sed_open.txt") |> 
+  mutate(experiment = case_when(timestamp < label_start ~ "control",
+                                TRUE ~ "label"))
+
+plot_gems(df)
+
+df |> 
+  write_csv("data/GEMS_tests/SerialCapture/GEMS_2024-08-20_chamber_sed_open_proc.csv")
+```
+
+
+Calculate slope and rate using Scott's method.
+
+Give each measurement loop an average timestamp and pivot to wide format.
+
+
+```{r}
+df_ts <- df %>% 
+  mutate(cycle = cumsum(mass == 18)) %>% 
+  group_by(cycle) %>% 
+  mutate(cycle_ts = mean(timestamp)) %>% 
+  ungroup()
+
+df_wide <- df_ts %>% 
+  select(timestamp = cycle_ts, mass, pressure, experiment) %>% 
+  pivot_wider(names_from = mass, names_prefix = "mass_",
+              values_from = pressure)
+```
+
+Natural nitrogen abundance and saturation concentration
+
+```{r}
+frac_abd_15 <- 0.00367
+frac_abd_14 <- 1 - frac_abd_15
+nit_sat_umol <- 600 # calculate for lab temp and pressure
+```
+
+Plot to find rough background values (should do this programmatically)
+
+```{r}
+df_wide %>% 
+  select(timestamp, mass_28, mass_29, mass_30, mass_40) %>% 
+  dygraph() %>% 
+  dyOptions(logscale = TRUE)
+```
+
+Backgrounds from plot
+
+```{r}
+bg_29 <- 1E-11
+bg_30 <- 5.3E-12
+```
+
+Normalized partial pressures and molar concentrations
+
+```{r}
+df_proc <- df_wide %>% 
+  mutate(et = timestamp - timestamp[1],
+         mass_28_18 = mass_28 / mass_18,
+         mass_29_18 = mass_29 / mass_18,
+         mass_30_18 = mass_30 / mass_18,
+         mass_28_40 = mass_28 / mass_40,
+         mass_29_40 = mass_29 / mass_40,
+         mass_30_40 = mass_30 / mass_40,
+         mass_40_28 = (mass_40 / mass_28), # include mass 40 bg subtraction?
+         mass_29_28 = ( mass_29 - bg_29 ) / mass_28,
+         mass_30_28 = ( mass_30 - bg_30 ) / mass_28,
+         # molar concentration based on nitrogen saturation
+         umol_29 = mass_29_28 * nit_sat_umol,
+         umol_30 = mass_30_28 * nit_sat_umol)
+```
+
+Nitrogen normalized argon. Use slope to calculate diffusive loss.
+
+```{r}
+df_proc %>% 
+  select(et, mass_40_28) %>% 
+  mutate(et = as.integer(et)) %>% 
+  dygraph() %>% 
+  dyOptions(logscale = TRUE)
+```
+
+```{r}
+ar <- df_proc %>% 
+  select(et, mass_40_28) %>% 
+  filter(et > 2000,
+         et < 6000)
+```
+
+```{r}
+ar_loss_rate <- coef(lm(mass_40_28 ~ et, data = ar))[2] * 3600 * 24
+```
+
+pick time with even slope
+
+```{r}
+df_proc %>% 
+  select(et, umol_30) %>% 
+  mutate(et = as.integer(et)) %>% 
+  dygraph() 
+```
+
+Use least-squares linear regression to get slope of mass 30 production
+
+```{r}
+sdf <- df_proc %>% 
+  select(et, umol_30) %>% 
+  filter(et > 2000,
+         et < 6000)
+```
+
+Slope (umol/s) of linear fit for inital linear range. Convert to umol/day
+
+```{r}
+umol_30_rate <- coef(lm(umol_30 ~ et, data = sdf))[2] * 3600 * 24
+```
+
+Initial rate of mass 30 production: `umol_30_rate` umol/day.
+
+Rolling slope for instantaneous rate
+
+```{r}
+library(zoo)
+
+df_slope <- df_proc %>% 
+  select(et, umol_30) %>% 
+  mutate(et = as.integer(et)) %>% 
+  filter(et > 10000)
+
+lm_slope <- function(x) {
+  coef(lm(x[,2] ~ x[,1]))[2]
+}
+
+umol_30_rate <- rollapply(data = df_slope,
+                                   width = 20,
+                                   FUN = lm_slope,
+                                   by.column = FALSE) * 3600 * 24
+
+plot(umol_30_rate)
+```
+
+try with approxfun

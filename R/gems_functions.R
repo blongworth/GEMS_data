@@ -1,5 +1,64 @@
 # Functions for reading and plotting GEMS data
 
+process_gems <- function(df, bg_et_range, nit_sat_umol) {
+  # get mean timestamps and widen data
+  df_wide <- rga_wider(df)
+  # determine backgrounds
+  df_bg <- df_wide |> 
+    filter(et > bg_et_range[1],
+           et < bg_et_range[2])
+  
+  bg_29 <- df_bg |> 
+    pull(mass_29) |> 
+    mean()
+  
+  bg_30 <- df_bg |> 
+    pull(mass_30) |> 
+    mean()
+  
+  # add ratios and concentrations
+  norm_rga(df_wide, bg_29, bg_30, nit_sat_umol)
+  
+}
+
+#' Calculate rate based on slope of linear fit
+#'
+#' @param df a dataframe with 2 columns: elapsed time (sec) and the measurement of interest
+#'
+#' @return A rate in units of measurement per day
+#' @export
+calc_rate <- function(df){
+  coef(lm(df[[2]] ~ df[[1]]))[2] * 3600 * 24
+}
+
+rga_wider <- function(df) {
+  df %>% 
+    mutate(cycle = cumsum(mass == 18)) %>% 
+    group_by(cycle) %>% 
+    mutate(cycle_ts = mean(timestamp)) %>% 
+    ungroup() %>% 
+    select(timestamp = cycle_ts, mass, pressure, experiment) %>% 
+    pivot_wider(names_from = mass, names_prefix = "mass_",
+                values_from = pressure)
+}
+
+norm_rga <- function(df, bg_29, bg_30, nit_sat_umol) {
+  df %>% 
+    mutate(et = timestamp - timestamp[1],
+           mass_28_18 = mass_28 / mass_18,
+           mass_29_18 = mass_29 / mass_18,
+           mass_30_18 = mass_30 / mass_18,
+           mass_28_40 = mass_28 / mass_40,
+           mass_29_40 = mass_29 / mass_40,
+           mass_30_40 = mass_30 / mass_40,
+           mass_40_28 = (mass_40 / mass_28), # include mass 40 bg subtraction?
+           mass_29_28 = ( mass_29 - bg_29 ) / mass_28,
+           mass_30_28 = ( mass_30 - bg_30 ) / mass_28,
+           # molar concentration based on nitrogen saturation
+           umol_29 = mass_29_28 * nit_sat_umol,
+           umol_30 = mass_30_28 * nit_sat_umol)
+}
+
 read_gems <- function(file) {
   raw_file <- read_lines(file)
   gems_raw <- raw_file[str_starts(raw_file, "(R:)*\\d+,")]
