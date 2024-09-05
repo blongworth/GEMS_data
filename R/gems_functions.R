@@ -24,11 +24,17 @@ process_gems <- function(df, bg_et_range, nit_sat_umol) {
 #' Calculate rate based on slope of linear fit
 #'
 #' @param df a dataframe with 2 columns: elapsed time (sec) and the measurement of interest
+#' @param et_range 2 element vector with the range of elapsed times to calculate rate over
 #'
 #' @return A rate in units of measurement per day
 #' @export
-calc_rate <- function(df){
-  coef(lm(df[[2]] ~ df[[1]]))[2] * 3600 * 24
+calc_rate <- function(df, et_range){
+  sdf <- df %>% 
+    select(et, umol_30) %>% 
+    filter(et > et_range[1],
+           et < et_range[2])
+  
+  coef(lm(sdf[[2]] ~ sdf[[1]]))[2] * 3600 * 24
 }
 
 rga_wider <- function(df) {

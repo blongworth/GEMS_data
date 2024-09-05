@@ -287,6 +287,14 @@ ggplot(df, aes(`DateTime (YYYY-MM-DD hh:mm:ss)`, `Oxygen (%air sat.)`)) +
 dygraph(select(df, `DateTime (YYYY-MM-DD hh:mm:ss)`, `Oxygen (%air sat.)`))
 ```
 
+# Chamber experiments
+
+Chamber is cut-off 1 l polyethelyne nalgene bottle.
+Fine screen glued into shoulder of bottle.
+Cap has ports for inlet, outlet, temp, O2.
+Recirculated flow using impeller pump, 
+flowing past MIMS membrane. Label injected through luer port on return line.
+
 ## 2024-08-19 First chamber experiment
 
 Chamber label experiment in sed-only, closed sided crate.
@@ -328,7 +336,6 @@ Natural nitrogen abundance and saturation concentration
 frac_abd_15 <- 0.00367
 frac_abd_14 <- 1 - frac_abd_15
 nit_sat_umol <- 600 # calculate for lab temp, sal, and pressure
-
 ```
 
 Plot to find rough background values (should do this programmatically)
@@ -371,21 +378,18 @@ ar <- df_proc %>%
 ```
 
 ```{r}
-ar_loss_rate <- coef(lm(mass_40_28 ~ et, data = ar))[2] * 3600 * 24
+ar_loss_rate_sed_closed <- coef(lm(mass_40_28 ~ et, data = ar))[2] * 3600 * 24
 ```
 
-pick time with even slope
+Ar loss rate: `ar_loss_rate_sed_closed`
+
+Use entire peak after power outage recovery
 
 ```{r}
 df_proc %>% 
   select(et, umol_30) %>% 
-  ggplot(aes(et, umol_30)) +
-  geom_line()
   mutate(et = as.integer(et)) %>% 
-  dygraph() %>% 
-  dy
-%>% 
-  dyOptions(logscale = TRUE)
+  dygraph()
 ```
 
 Use least-squares linear regression to get slope of mass 30 production
@@ -393,17 +397,17 @@ Use least-squares linear regression to get slope of mass 30 production
 ```{r}
 sdf <- df_proc %>% 
   select(et, umol_30) %>% 
-  filter(et > 10000,
-         et < 30000)
+  filter(et > 30000,
+         et < 40000)
 ```
 
 Slope (umol/s) of linear fit for inital linear range. Convert to umol/day
 
 ```{r}
-umol_30_rate <- coef(lm(umol_30 ~ et, data = sdf))[2] * 3600 * 24
+umol_30_rate_sed_closed <- coef(lm(umol_30 ~ et, data = sdf))[2] * 3600 * 24
 ```
 
-Initial rate of mass 30 production: `umol_30_rate` umol/day.
+Initial rate of mass 30 production: `umol_30_rate_sed_closed` umol/day.
 
 Rolling slope for instantaneous rate
 
@@ -525,13 +529,15 @@ df_proc %>%
 ```{r}
 ar <- df_proc %>% 
   select(et, mass_40_28) %>% 
-  filter(et > 2000,
-         et < 6000)
+  filter(et > 10000,
+         et < 20000)
 ```
 
 ```{r}
-ar_loss_rate <- coef(lm(mass_40_28 ~ et, data = ar))[2] * 3600 * 24
+ar_loss_rate_sed_open <- coef(lm(mass_40_28 ~ et, data = ar))[2] * 3600 * 24
 ```
+
+Ar loss rate: `ar_loss_rate_sed_open`
 
 pick time with even slope
 
@@ -547,14 +553,14 @@ Use least-squares linear regression to get slope of mass 30 production
 ```{r}
 sdf <- df_proc %>% 
   select(et, umol_30) %>% 
-  filter(et > 2000,
-         et < 6000)
+  filter(et > 10000,
+         et < 20000)
 ```
 
 Slope (umol/s) of linear fit for inital linear range. Convert to umol/day
 
 ```{r}
-umol_30_rate <- coef(lm(umol_30 ~ et, data = sdf))[2] * 3600 * 24
+umol_30_rate_sed_open <- coef(lm(umol_30 ~ et, data = sdf))[2] * 3600 * 24
 ```
 
 Initial rate of mass 30 production: `umol_30_rate` umol/day.
@@ -581,4 +587,206 @@ umol_30_rate <- rollapply(data = df_slope,
 plot(umol_30_rate)
 ```
 
-try with approxfun
+## 2024-08-21 chamber grass open sided
+
+
+```{r}
+label_start <-  as.POSIXct("2024-08-21 15:14:00")
+
+df <- read_gems("data/GEMS_tests/SerialCapture/GEMS_2024-08-21_chamber_grass_open.txt") |> 
+  mutate(experiment = case_when(timestamp < label_start ~ "control",
+                                TRUE ~ "label"))
+
+plot_gems(df)
+
+df |> 
+  write_csv("data/GEMS_tests/SerialCapture/GEMS_2024-08-21_chamber_grass_open_proc.csv")
+```
+
+```{r}
+df_wide <- rga_wider(df)
+```
+
+Natural nitrogen abundance and saturation concentration
+
+```{r}
+frac_abd_15 <- 0.00367
+frac_abd_14 <- 1 - frac_abd_15
+nit_sat_umol <- 600 # calculate for lab temp, sal, and pressure
+
+```
+
+Plot to find rough background values (should do this programmatically)
+
+```{r}
+df_wide %>% 
+  select(timestamp, mass_28, mass_29, mass_30, mass_40) %>% 
+  dygraph() %>% 
+  dyOptions(logscale = TRUE)
+```
+
+Backgrounds from plot
+
+```{r}
+bg_29 <- 8.1E-12
+bg_30 <- 2.3E-12
+```
+
+Normalized partial pressures and molar concentrations
+
+```{r}
+df_proc <- norm_rga(df_wide, bg_29, bg_30, nit_sat_umol = 600)
+```
+
+Nitrogen normalized argon. Use slope to calculate diffusive loss.
+
+```{r}
+df_proc %>% 
+  select(et, mass_40_28) %>% 
+  mutate(et = as.integer(et)) %>% 
+  dygraph() %>% 
+  dyOptions(logscale = TRUE)
+```
+
+```{r}
+ar <- df_proc %>% 
+  select(et, mass_40_28) %>% 
+  filter(et > 10000,
+         et < 20000)
+```
+
+```{r}
+ar_loss_rate_grass_open <- coef(lm(mass_40_28 ~ et, data = ar))[2] * 3600 * 24
+```
+
+
+```{r}
+df_proc %>% 
+  select(et, umol_30) %>% 
+  mutate(et = as.integer(et)) %>% 
+  dygraph() 
+```
+
+Use least-squares linear regression to get slope of mass 30 production
+
+```{r}
+sdf <- df_proc %>% 
+  select(et, umol_30) %>% 
+  filter(et > 10000,
+         et < 20000)
+```
+
+Slope (umol/s) of linear fit for inital linear range. Convert to umol/day
+
+```{r}
+umol_30_rate_grass_open <- coef(lm(umol_30 ~ et, data = sdf))[2] * 3600 * 24
+```
+
+Initial rate of mass 30 production: `umol_30_rate` umol/day.
+
+## 2024-08-22 chamber grass closed sided
+
+```{r}
+label_start <-  as.POSIXct("2024-08-22 13:40:00")
+
+df <- read_gems("data/GEMS_tests/SerialCapture/GEMS_2024-08-22_chamber_grass_closed.txt") |> 
+  mutate(experiment = case_when(timestamp < label_start ~ "control",
+                                TRUE ~ "label"))
+
+plot_gems(df)
+
+df |> 
+  write_csv("data/GEMS_tests/SerialCapture/GEMS_2024-08-22_chamber_grass_closed_proc.csv")
+```
+
+```{r}
+df_wide <- rga_wider(df)
+```
+
+Natural nitrogen abundance and saturation concentration
+
+```{r}
+frac_abd_15 <- 0.00367
+frac_abd_14 <- 1 - frac_abd_15
+nit_sat_umol <- 600 # calculate for lab temp, sal, and pressure
+
+```
+
+Plot to find rough background values (should do this programmatically)
+
+```{r}
+df_wide %>% 
+  select(timestamp, mass_28, mass_29, mass_30, mass_40) %>% 
+  dygraph() %>% 
+  dyOptions(logscale = TRUE)
+```
+
+Backgrounds from plot
+
+```{r}
+bg_29 <- 1E-11
+bg_30 <- 5.2E-12
+```
+
+Normalized partial pressures and molar concentrations
+
+```{r}
+df_proc <- norm_rga(df_wide, bg_29, bg_30, nit_sat_umol = 600)
+```
+
+Nitrogen normalized argon. Use slope to calculate diffusive loss.
+
+```{r}
+df_proc %>% 
+  select(et, mass_40_28) %>% 
+  mutate(et = as.integer(et)) %>% 
+  dygraph() %>% 
+  dyOptions(logscale = TRUE)
+```
+
+```{r}
+ar <- df_proc %>% 
+  select(et, mass_40_28) %>% 
+  filter(et > 10000,
+         et < 20000)
+```
+
+```{r}
+ar_loss_rate_grass_closed <- coef(lm(mass_40_28 ~ et, data = ar))[2] * 3600 * 24
+```
+
+
+```{r}
+df_proc %>% 
+  select(et, umol_30) %>% 
+  mutate(et = as.integer(et)) %>% 
+  dygraph() 
+```
+
+
+Use least-squares linear regression to get slope of mass 30 production
+
+```{r}
+sdf <- df_proc %>% 
+  select(et, umol_30) %>% 
+  filter(et > 10000,
+         et < 20000)
+
+umol_30_rate_grass_closed <- coef(lm(umol_30 ~ et, data = sdf))[2] * 3600 * 24
+umol_30_rate_grass_closed
+```
+
+Initial rate of mass 30 production: `umol_30_rate_grass_open` umol/day.
+
+
+## Rate summary
+
+```{r}
+rate_sum <- tibble(argon = c(ar_loss_rate_sed_closed, ar_loss_rate_sed_open, ar_loss_rate_grass_closed, ar_loss_rate_grass_open),
+                   nitrogen = c(umol_30_rate_sed_closed, umol_30_rate_sed_open, umol_30_rate_grass_closed, umol_30_rate_grass_open),
+                   grass = c(FALSE, FALSE, TRUE, TRUE), 
+                   open = c(FALSE, TRUE, FALSE, TRUE))
+
+rate_sum
+```
+
