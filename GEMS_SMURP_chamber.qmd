@@ -129,6 +129,12 @@ umol_30_rate_sed_closed_init <- coef(lm(umol_30 ~ et, data = sdf))[2] * 3600 * 2
 
 Initial rate of mass 30 production: `r umol_30_rate_sed_closed_init` umol/day.
 
+50% ar rate
+
+```{r}
+umol_30_rate_sed_closed_50 <- calc_rate(df_proc, c(7400, 15000))
+```
+
 max rate
 
 ```{r}
@@ -259,6 +265,12 @@ initial rate
 umol_30_rate_sed_open_init <- calc_rate(df_proc, c(2000, 7000))
 ```
 
+50% ar rate
+
+```{r}
+umol_30_rate_sed_open_50 <- calc_rate(df_proc, c(1400, 15000))
+```
+
 max rate
 
 ```{r}
@@ -349,6 +361,12 @@ initial rate
 
 ```{r}
 umol_30_rate_grass_open_init <- calc_rate(df_proc, c(8000, 13000))
+```
+
+50% ar rate
+
+```{r}
+umol_30_rate_grass_open_50 <- calc_rate(df_proc, c(7500, 15000))
 ```
 
 max rate
@@ -459,6 +477,12 @@ initial rate
 umol_30_rate_grass_closed_init <- calc_rate(df_proc, c(3000, 8000))
 ```
 
+50% ar rate
+
+```{r}
+umol_30_rate_grass_closed_50 <- calc_rate(df_proc, c(1500, 4000))
+```
+
 max rate
 
 ```{r}
@@ -481,13 +505,14 @@ nitrogen is umol 15N2 production per day
 rate_sum <- tibble(experiment = c("sed-closed", "sed-open", "grass-closed", "grass-open"),
                    argon = c(ar_loss_rate_sed_closed, ar_loss_rate_sed_open, ar_loss_rate_grass_closed, ar_loss_rate_grass_open),
                    dn_init = c(umol_30_rate_sed_closed_init, umol_30_rate_sed_open_init, umol_30_rate_grass_closed_init, umol_30_rate_grass_open_init),
+                   dn_50 = c(umol_30_rate_sed_closed_50, umol_30_rate_sed_open_50, umol_30_rate_grass_closed_50, umol_30_rate_grass_open_50),
                    dn_avg = c(umol_30_rate_sed_closed_avg, umol_30_rate_sed_open_avg, umol_30_rate_grass_closed_avg, umol_30_rate_grass_open_avg),
                    dn_max = c(umol_30_rate_sed_closed_max, umol_30_rate_sed_open_max, umol_30_rate_grass_closed_max, umol_30_rate_grass_open_max),
                    grass = c(FALSE, FALSE, TRUE, TRUE), 
                    open = c(FALSE, TRUE, FALSE, TRUE),
                    )
 
-knitr::kable(rate_sum, digits = c(1, 3, 0, 0, 0, 1, 1), col.names = c("Experiment", "Ar loss", "Initial DN", "Avg DN", "Max DN", "Grass", "Open sided"))
+knitr::kable(rate_sum, digits = c(1, 3, 0, 0, 0, 0, 1, 1), col.names = c("Experiment", "Ar loss", "Initial DN", "DN to 50% Ar", "Avg DN", "Max DN", "Grass", "Open sided"))
 ```
 ```{r}
 init <- ggplot(rate_sum, aes(experiment, dn_init)) +
@@ -528,6 +553,7 @@ by factor to sed closed.
 rate_sum <- rate_sum %>% 
   mutate(ar_factor = argon / rate_sum$argon[[1]],
          dn_init_cor = dn_init * ar_factor,
+         dn_50_cor = dn_50 * ar_factor,
          dn_avg_cor = dn_avg * ar_factor,
          dn_max_cor = dn_max * ar_factor)
 ```
@@ -536,6 +562,14 @@ rate_sum <- rate_sum %>%
 init <- ggplot(rate_sum, aes(experiment, dn_init_cor)) +
   geom_bar(stat = "identity") +
   labs(title = "Initial DN rate",
+       y = "15N2 production (umol/day)") +
+  theme(axis.title.x = element_blank(),  # Remove x-axis title
+    axis.text.x = element_blank(),
+    axis.title.y = element_blank())
+
+dn50 <- ggplot(rate_sum, aes(experiment, dn_50_cor)) +
+  geom_bar(stat = "identity") +
+  labs(title = "DN rate to 50% Ar",
        y = "15N2 production (umol/day)") +
   theme(axis.title.x = element_blank(),  # Remove x-axis title
     axis.text.x = element_blank(),
@@ -558,7 +592,7 @@ ar <- ggplot(rate_sum, aes(experiment, -argon)) +
   geom_bar(stat = "identity") +
   ylab("Ar loss rate")
 
-init / avg / max / ar
+init / dn50 / avg / max / ar
 ```
 ```{r}
 rate_sum %>% 
@@ -571,11 +605,33 @@ rate_sum %>%
        y = "15N2 production (umol/day)")
 ```
 
-initial rates from start to 20% argon loss
+initial rates from start to 50% argon loss
 
-define baseline, initial, then get time where argon is 80%.
+Uncorrected rates
 
 ```{r}
+rate_sum %>% 
+  select(experiment, dn_init, dn_50) %>% 
+  pivot_longer(c(dn_init, dn_50)) %>% 
+  ggplot(aes(experiment, value, fill = name)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Initial DN rate",
+       subtitle = "Initial 'even' slope and rate from t0 to 50% Ar loss",
+       y = "15N2 production (umol/day)")
+
+```
+
+Ar loss corrected
+
+```{r}
+rate_sum %>% 
+  select(experiment, dn_init_cor, dn_50_cor) %>% 
+  pivot_longer(c(dn_init_cor, dn_50_cor)) %>% 
+  ggplot(aes(experiment, value, fill = name)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Ar Loss Corrected Initial DN rate",
+       subtitle = "Initial 'even' slope and rate from t0 to 50% Ar loss",
+       y = "15N2 production (umol/day)")
 
 ```
 
