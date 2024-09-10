@@ -1,18 +1,14 @@
 library(shiny)
 library(tidyverse)
+library(dygraphs)
+source("../R/gems_functions.R")
 
-filename <- "C:/Users/brett/Desktop/GEMS 2023-09-27 14-54-30.txt"
+filename <- "../data/GEMS_tests/SerialCapture/GEMS_2024-08-19_chamber_sed_closed.txt"
 
-read_GEMS <- function(filename) {
-  raw_file <- read_lines(filename)
-  data_file <- raw_file[str_starts(raw_file, "\\d+,")]
-  read_csv(I(data_file),
-           col_names = c("hour", "min", "sec", "month", "day", "year", "mass", "current")) |> 
-  mutate(hour = ifelse(str_sub(hour, 1) == "R", as.numeric(str_sub(hour, 3)), hour),
-         mass = as.factor(mass),
-         current = current*1E-16,
-         pressure = current/0.0801,
-         timestamp = lubridate::make_datetime(year, month, day, hour, min, sec, tz = "America/New_York"))
+get_data <- function(filename) {
+  read_gems(filename) %>% 
+    mutate(experiment = "test") %>% 
+    rga_wider()
 }
 
 # Define UI for application that plots gems data
@@ -22,7 +18,7 @@ ui <- fluidPage(
   titlePanel("Current GEMS data"),
   
   # Show a plot of the generated distribution
-  plotOutput("gemsPlot", width = "100%"),
+  dygraphOutput("gemsPlot", width = "100%"),
   
   # Set filename
   #shinyFilesButton("filename", "Choose File", "Choose a file", multiple = FALSE)
@@ -31,14 +27,15 @@ ui <- fluidPage(
 # Define server logic required to draw a histogram
 server <- function(input, output, session) {
   
-  fileData <- reactiveFileReader(5000, session, filename, read_GEMS)
+  fileData <- reactiveFileReader(5000, session, filename, get_data)
   
-  output$gemsPlot <- renderPlot({
+  output$gemsPlot <- renderDygraph({
     
     fileData() |> 
-      ggplot(aes(timestamp, current, color = mass)) +
-      geom_line() +
-      scale_y_log10()
+      #select(timestamp, mass_28, mass_29, mass_30, mass_40) %>% 
+      select(-experiment) %>% 
+      dygraph() %>% 
+      dyOptions(logscale = TRUE)
     
   })
 }
