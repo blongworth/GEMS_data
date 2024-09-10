@@ -17,6 +17,8 @@ ui <- fluidPage(
   # Application title
   titlePanel("Current GEMS data"),
   
+  # File Browser
+  fileInput("file", "Choose a RGA file"),
   # Show a plot of the generated distribution
   dygraphOutput("gemsPlot", width = "100%"),
   
@@ -27,11 +29,18 @@ ui <- fluidPage(
 # Define server logic required to draw a histogram
 server <- function(input, output, session) {
   
-  fileData <- reactiveFileReader(5000, session, filename, get_data)
+  file_data <- reactive({
+    req(input$file)
+    input$file
+  })
+  
+  file_reader <- reactive({
+    req(file_data())
+    reactiveFileReader(5000, session, file_data()$datapath, get_data)
+  })
   
   output$gemsPlot <- renderDygraph({
-    
-    fileData() |> 
+    file_reader()() %>% 
       #select(timestamp, mass_28, mass_29, mass_30, mass_40) %>% 
       select(-experiment) %>% 
       dygraph() %>% 
