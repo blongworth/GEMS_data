@@ -8,6 +8,7 @@ format:
 ```{r}
 library(tidyverse)
 library(dygraphs)
+library(patchwork)
 source("R/gems_functions.R")
 theme_set(theme_classic())
 ```
@@ -20,7 +21,7 @@ Cap has ports for inlet, outlet, temp, O2.
 Recirculated flow using impeller pump, 
 flowing past MIMS membrane. Label injected through luer port on return line.
 
-## 2024-08-19 First chamber experiment
+## 2024-08-19 chamber sed closed sided
 
 Chamber label experiment in sed-only, closed sided crate.
 
@@ -86,6 +87,7 @@ Nitrogen normalized argon. Use slope to calculate diffusive loss.
 df_proc %>% 
   select(et, mass_40_28) %>% 
   mutate(et = as.integer(et)) %>% 
+  filter(mass_40_28 < 0.1) %>% 
   dygraph()
 ```
 
@@ -139,7 +141,7 @@ avg rate
 umol_30_rate_sed_closed_avg <- calc_rate(df_proc, c(7000, 79000))
 ```
 
-## 2024-08-20 Chamber experiment: Sed only, open crate
+## 2024-08-20 chamber sed open sided
 
 Chamber label experiment in sed-only, open sided crate.
 
@@ -225,6 +227,7 @@ Nitrogen normalized argon. Use slope to calculate diffusive loss.
 df_proc %>% 
   select(et, mass_40_28) %>% 
   mutate(et = as.integer(et)) %>% 
+  filter(mass_40_28 < 0.1) %>% 
   dygraph()
 ```
 
@@ -320,6 +323,7 @@ Nitrogen normalized argon. Use slope to calculate diffusive loss.
 df_proc %>% 
   select(et, mass_40_28) %>% 
   mutate(et = as.integer(et)) %>% 
+  filter(mass_40_28 < 0.08) %>% 
   dygraph()
 ```
 
@@ -426,6 +430,7 @@ Nitrogen normalized argon. Use slope to calculate diffusive loss.
 df_proc %>% 
   select(et, mass_40_28) %>% 
   mutate(et = as.integer(et)) %>% 
+  filter(mass_40_28 < 0.12) %>% 
   dygraph()
 ```
 
@@ -473,15 +478,108 @@ argon is nitrogen-normalized unitless argon loss per day
 nitrogen is umol 15N2 production per day
 
 ```{r}
-rate_sum <- tibble(argon = c(ar_loss_rate_sed_closed, ar_loss_rate_sed_open, ar_loss_rate_grass_closed, ar_loss_rate_grass_open),
+rate_sum <- tibble(experiment = c("sed-closed", "sed-open", "grass-closed", "grass-open"),
+                   argon = c(ar_loss_rate_sed_closed, ar_loss_rate_sed_open, ar_loss_rate_grass_closed, ar_loss_rate_grass_open),
                    dn_init = c(umol_30_rate_sed_closed_init, umol_30_rate_sed_open_init, umol_30_rate_grass_closed_init, umol_30_rate_grass_open_init),
-                   dn_max = c(umol_30_rate_sed_closed_max, umol_30_rate_sed_open_max, umol_30_rate_grass_closed_max, umol_30_rate_grass_open_max),
                    dn_avg = c(umol_30_rate_sed_closed_avg, umol_30_rate_sed_open_avg, umol_30_rate_grass_closed_avg, umol_30_rate_grass_open_avg),
+                   dn_max = c(umol_30_rate_sed_closed_max, umol_30_rate_sed_open_max, umol_30_rate_grass_closed_max, umol_30_rate_grass_open_max),
                    grass = c(FALSE, FALSE, TRUE, TRUE), 
-                   open = c(FALSE, TRUE, FALSE, TRUE))
+                   open = c(FALSE, TRUE, FALSE, TRUE),
+                   )
 
-knitr::kable(rate_sum)
+knitr::kable(rate_sum, digits = c(1, 3, 0, 0, 0, 1, 1), col.names = c("Experiment", "Ar loss", "Initial DN", "Avg DN", "Max DN", "Grass", "Open sided"))
 ```
+```{r}
+init <- ggplot(rate_sum, aes(experiment, dn_init)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Initial DN rate",
+       y = "15N2 production (umol/day)") +
+  theme(axis.title.x = element_blank(),  # Remove x-axis title
+    axis.text.x = element_blank(),
+    axis.title.y = element_blank())
+
+avg <- ggplot(rate_sum, aes(experiment, dn_avg)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Average DN rate",
+       y = "15N2 production (umol/day)") +
+  theme(axis.title.x = element_blank(),  # Remove x-axis title
+    axis.text.x = element_blank())
+
+max <- ggplot(rate_sum, aes(experiment, dn_max)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Maximum DN rate",
+       y = "15N2 production (umol/day)") +
+  theme(axis.title.y = element_blank())
+
+ar <- ggplot(rate_sum, aes(experiment, -argon)) +
+  geom_bar(stat = "identity") +
+  ylab("Ar loss rate")
+
+init / avg / max / ar
+```
+
+Initial attempt at correction for Ar loss
+
+If Ar loss is dimensionless, but linear, can we correct by ratio of loss
+to the least loss? ie, sed closed is no correction, others corrected
+by factor to sed closed.
+
+```{r}
+rate_sum <- rate_sum %>% 
+  mutate(ar_factor = argon / rate_sum$argon[[1]],
+         dn_init_cor = dn_init * ar_factor,
+         dn_avg_cor = dn_avg * ar_factor,
+         dn_max_cor = dn_max * ar_factor)
+```
+
+```{r}
+init <- ggplot(rate_sum, aes(experiment, dn_init_cor)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Initial DN rate",
+       y = "15N2 production (umol/day)") +
+  theme(axis.title.x = element_blank(),  # Remove x-axis title
+    axis.text.x = element_blank(),
+    axis.title.y = element_blank())
+
+avg <- ggplot(rate_sum, aes(experiment, dn_avg_cor)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Average DN rate",
+       y = "15N2 production (umol/day)") +
+  theme(axis.title.x = element_blank(),  # Remove x-axis title
+    axis.text.x = element_blank())
+
+max <- ggplot(rate_sum, aes(experiment, dn_max_cor)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Maximum DN rate",
+       y = "15N2 production (umol/day)") +
+  theme(axis.title.y = element_blank())
+
+ar <- ggplot(rate_sum, aes(experiment, -argon)) +
+  geom_bar(stat = "identity") +
+  ylab("Ar loss rate")
+
+init / avg / max / ar
+```
+```{r}
+rate_sum %>% 
+  select(experiment, dn_init, dn_init_cor) %>% 
+  pivot_longer(c(dn_init, dn_init_cor)) %>% 
+  ggplot(aes(experiment, value, fill = name)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Initial DN rate",
+       subtitle = "With/without Argon correction",
+       y = "15N2 production (umol/day)")
+```
+
+initial rates from start to 20% argon loss
+
+define baseline, initial, then get time where argon is 80%.
+
+```{r}
+
+```
+
+
 
 exponential fitting
 
