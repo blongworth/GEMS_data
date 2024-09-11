@@ -8,25 +8,16 @@ filename <- "../data/GEMS_tests/SerialCapture/GEMS_2024-08-19_chamber_sed_closed
 get_data <- function(filename) {
   read_gems(filename) %>% 
     mutate(experiment = "test") %>% 
-    rga_wider()
+    rga_wider() %>% 
+    select(-experiment)
 }
 
-# Define UI for application that plots gems data
 ui <- fluidPage(
-  
-  # Application title
   titlePanel("Current GEMS data"),
-  
-  # File Browser
   fileInput("file", "Choose a RGA file"),
-  # Show a plot of the generated distribution
   dygraphOutput("gemsPlot", width = "100%"),
-  
-  # Set filename
-  #shinyFilesButton("filename", "Choose File", "Choose a file", multiple = FALSE)
 )
 
-# Define server logic required to draw a histogram
 server <- function(input, output, session) {
   
   file_data <- reactive({
@@ -41,11 +32,8 @@ server <- function(input, output, session) {
   
   output$gemsPlot <- renderDygraph({
     file_reader()() %>% 
-      #select(timestamp, mass_28, mass_29, mass_30, mass_40) %>% 
-      select(-experiment) %>% 
       dygraph() %>% 
       dyOptions(logscale = TRUE)
-    
   })
 }
 
