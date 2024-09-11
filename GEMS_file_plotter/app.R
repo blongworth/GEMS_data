@@ -3,8 +3,6 @@ library(tidyverse)
 library(dygraphs)
 source("../R/gems_functions.R")
 
-filename <- "../data/GEMS_tests/SerialCapture/GEMS_2024-08-19_chamber_sed_closed.txt"
-
 get_data <- function(filename) {
   read_gems(filename) %>% 
     mutate(experiment = "test") %>% 
