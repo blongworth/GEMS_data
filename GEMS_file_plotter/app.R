@@ -21,11 +21,12 @@ server <- function(input, output, session) {
   file_data <- reactive({
     req(input$file)
     input$file
+    filename <<- input$file$datapath
   })
   
   file_reader <- reactive({
     req(file_data())
-    reactiveFileReader(5000, session, file_data()$datapath, get_data)
+    reactiveFileReader(5000, session, filename, get_data)
   })
   
   output$gemsPlot <- renderDygraph({
