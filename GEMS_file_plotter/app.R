@@ -33,6 +33,7 @@ server <- function(input, output, session) {
   })
   
   output$gemsPlot <- renderDygraph({
+    req(file_data()$datapath)
     file_reader()() %>% 
       dygraph() %>% 
       dyOptions(logscale = TRUE)
