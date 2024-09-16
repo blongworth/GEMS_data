@@ -1,6 +1,7 @@
 library(shiny)
 library(tidyverse)
 library(dygraphs)
+library(shinyFiles)
 source("../R/gems_functions.R")
 
 get_data <- function(filename) {
@@ -12,21 +13,23 @@ get_data <- function(filename) {
 
 ui <- fluidPage(
   titlePanel("Current GEMS data"),
-  fileInput("file", "Choose a RGA file"),
+  shinyFilesButton('file', label='File select', title='Choose a RGA file', multiple=FALSE),
   dygraphOutput("gemsPlot", width = "100%"),
 )
 
 server <- function(input, output, session) {
   
+  roots = getVolumes()
+  
   file_data <- reactive({
     req(input$file)
-    input$file
-    filename <<- input$file$datapath
+    shinyFileChoose(input, 'file', root=roots, filetypes=c('', 'txt'))
+    parseFilePaths(root=roots, input$file)
   })
   
   file_reader <- reactive({
-    req(file_data())
-    reactiveFileReader(5000, session, filename, get_data)
+    req(file_data()$datapath)
+    reactiveFileReader(5000, session, file_data()$datapath[[1]], get_data)
   })
   
   output$gemsPlot <- renderDygraph({
