@@ -48,9 +48,9 @@ rga_wider <- function(df) {
                 values_from = pressure)
 }
 
-norm_rga <- function(df, bg_29, bg_30, nit_sat_umol) {
+norm_rga <- function(df, bg_29, bg_30, nit_sat_umol, t0 = df$timestamp[1]) {
   df %>% 
-    mutate(et = timestamp - timestamp[1],
+    mutate(et = as.integer(timestamp - t0),
            mass_28_18 = mass_28 / mass_18,
            mass_29_18 = mass_29 / mass_18,
            mass_30_18 = mass_30 / mass_18,
@@ -78,6 +78,13 @@ read_gems <- function(file) {
            timestamp = lubridate::make_datetime(year, month, day, hour, min, sec, 
                                                 tz = "America/New_York")) |> 
     select(timestamp, mass, current, pressure)
+}
+
+plot_wide <- function(df_wide) {
+  df_wide %>% 
+    select(timestamp, mass_28, mass_29, mass_30, mass_32, mass_40) %>% 
+    dygraph() %>% 
+    dyOptions(logscale = TRUE)
 }
 
 plot_gems <- function(data, log = TRUE) {
