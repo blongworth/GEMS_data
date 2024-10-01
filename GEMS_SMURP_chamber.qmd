@@ -1009,9 +1009,6 @@ ar_loss_rate_sed_closed_3 <- coef(lm(mass_40_28 ~ et, data = ar))[2] * 3600 * 24
 
 Ar loss rates are normalized to N2, but uncalibrated for now.
 
-Ar loss rate: `r ar_loss_rate_sed_closed_2`
-
-
 ```{r}
 df_proc %>% 
   select(et, umol_30) %>% 
@@ -1274,6 +1271,121 @@ avg rate
 umol_30_rate_grass_closed_avg_3 <- calc_rate(df_proc, c(0, 32000))
 ```
 
+## 2024-09-30 chamber grass open
+
+Chamber label experiment in grass, open sided crate.
+
+* Installed chamber. Sed-surface 10cm, chamber-surface 6cm.
+* Started pump, purge bubbles.
+* Inject 5ml of argon-saturated 20 mmol/L 15NO3- solution.
+
+```{r}
+label_start <-  as.POSIXct("2024-09-30 13:05:00")
+
+df <- read_gems("data/GEMS_tests/SerialCapture/GEMS_2024-09-30_chamber_grass_open.txt") |> 
+         mutate(experiment = case_when(timestamp < label_start ~ "control",
+                                TRUE ~ "label"))
+```
+
+Calculate slope and rate using Scott's method.
+
+Give each measurement loop an average timestamp and pivot to wide format.
+
+
+```{r}
+df_wide <- rga_wider(df)
+```
+
+Natural nitrogen abundance and saturation concentration
+
+```{r}
+frac_abd_15 <- 0.00367
+frac_abd_14 <- 1 - frac_abd_15
+nit_sat_umol <- 600 # calculate for lab temp, sal, and pressure
+```
+
+Plot to find rough background values (should do this programmatically)
+
+```{r}
+plot_wide(df_wide)
+```
+
+Backgrounds from plot
+
+```{r}
+bg_29 <- 9.0E-12
+bg_30 <- 4.7E-12
+```
+
+Normalized partial pressures and molar concentrations
+
+```{r}
+df_proc <- norm_rga(df_wide, bg_29, bg_30, nit_sat_umol = 600, t0 = label_start)
+```
+
+time of oxygen minimum
+
+```{r}
+df_proc %>% 
+  select(et, mass_32) %>% 
+  dygraph()
+```
+
+Nitrogen normalized argon. Use slope to calculate diffusive loss.
+
+```{r}
+df_proc %>% 
+  select(et, mass_40_28) %>% 
+  filter(mass_40_28 < 0.1) %>% 
+  dygraph()
+```
+
+```{r}
+ar <- df_proc %>% 
+  select(et, mass_40_28) %>% 
+  filter(et > 7000,
+         et < 9000)
+
+ar_loss_rate_grass_open_3 <- coef(lm(mass_40_28 ~ et, data = ar))[2] * 3600 * 24
+```
+
+Ar loss rates are normalized to N2, but uncalibrated for now.
+
+Ar loss rate: `r ar_loss_rate_sed_closed_2`
+
+
+```{r}
+df_proc %>% 
+  select(et, umol_30) %>% 
+  dygraph()
+```
+
+Use least-squares linear regression to get slope of mass 30 production
+
+```{r}
+umol_30_rate_grass_open_init_3 <- calc_rate(df_proc, c(7000, 9000))
+```
+
+Initial rate of mass 30 production: `r umol_30_rate_sed_closed_init` umol/day.
+
+50% ar rate
+
+```{r}
+umol_30_rate_grass_open_50_3 <- calc_rate(df_proc, c(1000, 4000))
+```
+
+max rate
+
+```{r}
+umol_30_rate_grass_open_max_3 <- calc_rate(df_proc, c(33000, 35000))
+```
+
+avg rate
+
+```{r}
+umol_30_rate_grass_open_avg_3 <- calc_rate(df_proc, c(0, 37000))
+```
+
 
 # Rate summary
 
@@ -1282,17 +1394,17 @@ argon is nitrogen-normalized unitless argon loss per day
 nitrogen is umol 15N2 production per day
 
 ```{r}
-rate_sum <- tibble(experiment = as.factor(c("sed-closed", "sed-open", "grass-closed", "grass-open", "sed-closed", "sed-open", "grass-closed", "grass-open", "sed-closed", "sed-open", "grass-closed")),
-                   replicate = as.factor(c(1,1,1,1,2,2,2,2,3,3,3)),
-                   argon = c(ar_loss_rate_sed_closed, ar_loss_rate_sed_open, ar_loss_rate_grass_closed, ar_loss_rate_grass_open, ar_loss_rate_sed_closed_2, ar_loss_rate_sed_open_2, ar_loss_rate_grass_closed_2, ar_loss_rate_grass_open_2, ar_loss_rate_sed_closed_3, ar_loss_rate_sed_open_3, ar_loss_rate_grass_closed_3),
-                   t_anox = c(10000, 12000,7000, 14000, 28000, 17000, 6000, 8000, 15000, 12000, 7000)/3600,
-                   t_peak = c(72000, 41000, 29000, 44000, 92000, 65000, 47000, 41000, 48000, 57000, 32000)/3600,
-                   dn_init = c(umol_30_rate_sed_closed_init, umol_30_rate_sed_open_init, umol_30_rate_grass_closed_init, umol_30_rate_grass_open_init, umol_30_rate_sed_closed_init_2, umol_30_rate_sed_open_init_2, umol_30_rate_grass_closed_init_2, umol_30_rate_grass_open_init_2, umol_30_rate_sed_closed_init_3, umol_30_rate_sed_open_init_3, umol_30_rate_grass_closed_init_3),
-                   dn_50 = c(umol_30_rate_sed_closed_50, umol_30_rate_sed_open_50, umol_30_rate_grass_closed_50, umol_30_rate_grass_open_50, umol_30_rate_sed_closed_50_2, umol_30_rate_sed_open_50_2, umol_30_rate_grass_closed_50_2, umol_30_rate_grass_open_50_2, umol_30_rate_sed_closed_50_3, umol_30_rate_sed_open_50_3, umol_30_rate_grass_closed_50_3),
-                   dn_avg = c(umol_30_rate_sed_closed_avg, umol_30_rate_sed_open_avg, umol_30_rate_grass_closed_avg, umol_30_rate_grass_open_avg, umol_30_rate_sed_closed_avg_2, umol_30_rate_sed_open_avg_2, umol_30_rate_grass_closed_avg_2, umol_30_rate_grass_open_avg_2, umol_30_rate_sed_closed_avg_3, umol_30_rate_sed_open_avg_3, umol_30_rate_grass_closed_avg_3),
-                   dn_max = c(umol_30_rate_sed_closed_max, umol_30_rate_sed_open_max, umol_30_rate_grass_closed_max, umol_30_rate_grass_open_max, umol_30_rate_sed_closed_max_2, umol_30_rate_sed_open_max_2, umol_30_rate_grass_closed_max_2, umol_30_rate_grass_open_max_2, umol_30_rate_sed_closed_max_3, umol_30_rate_sed_open_max_3, umol_30_rate_grass_closed_max_3),
-                   grass = c(FALSE, FALSE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE, FALSE, TRUE), 
-                   open = c(FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE),
+rate_sum <- tibble(experiment = as.factor(c("sed-closed", "sed-open", "grass-closed", "grass-open", "sed-closed", "sed-open", "grass-closed", "grass-open", "sed-closed", "sed-open", "grass-closed", "grass-open")),
+                   replicate = as.factor(c(1,1,1,1,2,2,2,2,3,3,3,3)),
+                   argon = c(ar_loss_rate_sed_closed, ar_loss_rate_sed_open, ar_loss_rate_grass_closed, ar_loss_rate_grass_open, ar_loss_rate_sed_closed_2, ar_loss_rate_sed_open_2, ar_loss_rate_grass_closed_2, ar_loss_rate_grass_open_2, ar_loss_rate_sed_closed_3, ar_loss_rate_sed_open_3, ar_loss_rate_grass_closed_3, ar_loss_rate_grass_open_3),
+                   t_anox = c(10000, 12000,7000, 14000, 28000, 17000, 6000, 8000, 15000, 12000, 7000, 8000)/3600,
+                   t_peak = c(72000, 41000, 29000, 44000, 92000, 65000, 47000, 41000, 48000, 57000, 32000, 37000)/3600,
+                   dn_init = c(umol_30_rate_sed_closed_init, umol_30_rate_sed_open_init, umol_30_rate_grass_closed_init, umol_30_rate_grass_open_init, umol_30_rate_sed_closed_init_2, umol_30_rate_sed_open_init_2, umol_30_rate_grass_closed_init_2, umol_30_rate_grass_open_init_2, umol_30_rate_sed_closed_init_3, umol_30_rate_sed_open_init_3, umol_30_rate_grass_closed_init_3, umol_30_rate_grass_open_init_3),
+                   dn_50 = c(umol_30_rate_sed_closed_50, umol_30_rate_sed_open_50, umol_30_rate_grass_closed_50, umol_30_rate_grass_open_50, umol_30_rate_sed_closed_50_2, umol_30_rate_sed_open_50_2, umol_30_rate_grass_closed_50_2, umol_30_rate_grass_open_50_2, umol_30_rate_sed_closed_50_3, umol_30_rate_sed_open_50_3, umol_30_rate_grass_closed_50_3,  umol_30_rate_grass_open_50_3),
+                   dn_avg = c(umol_30_rate_sed_closed_avg, umol_30_rate_sed_open_avg, umol_30_rate_grass_closed_avg, umol_30_rate_grass_open_avg, umol_30_rate_sed_closed_avg_2, umol_30_rate_sed_open_avg_2, umol_30_rate_grass_closed_avg_2, umol_30_rate_grass_open_avg_2, umol_30_rate_sed_closed_avg_3, umol_30_rate_sed_open_avg_3, umol_30_rate_grass_closed_avg_3,  umol_30_rate_grass_open_avg_3),
+                   dn_max = c(umol_30_rate_sed_closed_max, umol_30_rate_sed_open_max, umol_30_rate_grass_closed_max, umol_30_rate_grass_open_max, umol_30_rate_sed_closed_max_2, umol_30_rate_sed_open_max_2, umol_30_rate_grass_closed_max_2, umol_30_rate_grass_open_max_2, umol_30_rate_sed_closed_max_3, umol_30_rate_sed_open_max_3, umol_30_rate_grass_closed_max_3,  umol_30_rate_grass_open_max_3),
+                   grass = c(FALSE, FALSE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE, FALSE, TRUE, FALSE), 
+                   open = c(FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE),
                    )
 
 knitr::kable(rate_sum, digits = c(1, 1, 3, 1, 1, 0, 0, 0, 0, 1, 1), col.names = c("Experiment", "Replicate", "Ar loss", "Time to Peak", "Time to Anoxia", "Initial DN", "DN to 50% Ar", "Avg DN", "Max DN", "Grass", "Open sided"))
