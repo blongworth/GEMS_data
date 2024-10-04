@@ -938,7 +938,7 @@ Chamber label experiment in sed-only, closed sided crate.
 * Inject 5ml of argon-saturated 20 mmol/L 15NO3- solution.
 
 ```{r}
-label_start <-  as.POSIXct("2024-09-24 13:26:00")
+label_start <-  as.POSIXct("2024-09-24 13:27:00")
 
 df <- read_gems("data/GEMS_tests/SerialCapture/GEMS_2024-09-24_chamber_sed_closed.txt") |> 
          mutate(experiment = case_when(timestamp < label_start ~ "control",
@@ -1020,8 +1020,6 @@ Use least-squares linear regression to get slope of mass 30 production
 ```{r}
 umol_30_rate_sed_closed_init_3 <- calc_rate(df_proc, c(14000, 16000))
 ```
-
-Initial rate of mass 30 production: `r umol_30_rate_sed_closed_init` umol/day.
 
 50% ar rate
 
@@ -1121,9 +1119,6 @@ ar_loss_rate_sed_open_3 <- coef(lm(mass_40_28 ~ et, data = ar))[2] * 3600 * 24
 
 Ar loss rates are normalized to N2, but uncalibrated for now.
 
-Ar loss rate: `r ar_loss_rate_sed_closed_2`
-
-
 ```{r}
 df_proc %>% 
   select(et, umol_30) %>% 
@@ -1135,8 +1130,6 @@ Use least-squares linear regression to get slope of mass 30 production
 ```{r}
 umol_30_rate_sed_open_init_3 <- calc_rate(df_proc, c(11000, 13000))
 ```
-
-Initial rate of mass 30 production: `r umol_30_rate_sed_closed_init` umol/day.
 
 50% ar rate
 
@@ -1236,9 +1229,6 @@ ar_loss_rate_grass_closed_3 <- coef(lm(mass_40_28 ~ et, data = ar))[2] * 3600 * 
 
 Ar loss rates are normalized to N2, but uncalibrated for now.
 
-Ar loss rate: `r ar_loss_rate_sed_closed_2`
-
-
 ```{r}
 df_proc %>% 
   select(et, umol_30) %>% 
@@ -1250,8 +1240,6 @@ Use least-squares linear regression to get slope of mass 30 production
 ```{r}
 umol_30_rate_grass_closed_init_3 <- calc_rate(df_proc, c(6000, 8000))
 ```
-
-Initial rate of mass 30 production: `r umol_30_rate_sed_closed_init` umol/day.
 
 50% ar rate
 
@@ -1280,7 +1268,7 @@ Chamber label experiment in grass, open sided crate.
 * Inject 5ml of argon-saturated 20 mmol/L 15NO3- solution.
 
 ```{r}
-label_start <-  as.POSIXct("2024-09-30 13:05:00")
+label_start <-  as.POSIXct("2024-09-30 13:07:00")
 
 df <- read_gems("data/GEMS_tests/SerialCapture/GEMS_2024-09-30_chamber_grass_open.txt") |> 
          mutate(experiment = case_when(timestamp < label_start ~ "control",
@@ -1365,8 +1353,6 @@ Use least-squares linear regression to get slope of mass 30 production
 ```{r}
 umol_30_rate_grass_open_init_3 <- calc_rate(df_proc, c(7000, 9000))
 ```
-
-Initial rate of mass 30 production: `r umol_30_rate_sed_closed_init` umol/day.
 
 50% ar rate
 
@@ -1507,6 +1493,29 @@ ox <- ggplot(rate_sum, aes(experiment, t_anox)) +
 
 init / ar / ox
 ```
+
+Grass vs sed only
+
+```{r}
+init <- ggplot(rate_sum, aes(grass, dn_init_cor)) +
+  geom_boxplot() +
+  labs(title = "DN rate at O2 min (Ar corrected)",
+       y = "15N2 production (umol/day)") +
+  theme(axis.title.x = element_blank(),  # Remove x-axis title
+    axis.text.x = element_blank())
+
+ar <- ggplot(rate_sum, aes(grass, -argon)) +
+  geom_boxplot() +
+  ylab("Ar loss rate")
+
+ox <- ggplot(rate_sum, aes(grass, t_anox)) +
+  geom_boxplot() +
+  ylab("Time to anoxia")
+
+init / ar / ox
+```
+
+
 ```{r}
 init <- ggplot(rate_sum, aes(experiment, dn_init_cor, fill = replicate)) +
   geom_bar(stat = "identity", position = "dodge") +
@@ -1596,6 +1605,70 @@ a <- aov(dn_init_cor ~ grass + open, data = rate_sum)
 summary(a)
 ```
 
+Grass vs no grass
+
+```{r}
+a <- aov(dn_init_cor ~ grass, data = rate_sum)
+summary(a)
+```
+
+between replicates
+
+```{r}
+a <- aov(dn_init_cor ~ replicate, data = rate_sum)
+summary(a)
+```
+
+
+Normalize results to a range of 0-1 by replicate 
+to remove effect of overall higher rate in final replicate
+
+```{r}
+scale_rate <- function(rate) {
+  (rate - min(rate))/(max(rate) - min(rate))
+}
+
+rate_sum <- rate_sum %>% 
+  group_by(replicate) %>% 
+  mutate(norm_rate = scale_rate(dn_init_cor))
+```
+
+```{r}
+a <- aov(norm_rate ~ experiment, data = rate_sum)
+summary(a)
+```
+
+```{r}
+a <- aov(norm_rate ~ grass + open, data = rate_sum)
+summary(a)
+```
+
+Grass vs no grass
+
+```{r}
+a <- aov(norm_rate ~ grass, data = rate_sum)
+summary(a)
+```
+
+```{r}
+init <- ggplot(rate_sum, aes(experiment, norm_rate)) +
+  geom_boxplot() +
+  labs(title = "DN rate at O2 min (Ar corrected)",
+       y = "15N2 production (umol/day)") +
+  theme(axis.title.x = element_blank(),  # Remove x-axis title
+    axis.text.x = element_blank())
+
+ar <- ggplot(rate_sum, aes(experiment, -argon)) +
+  geom_boxplot() +
+  ylab("Ar loss rate")
+
+ox <- ggplot(rate_sum, aes(experiment, t_anox)) +
+  geom_boxplot() +
+  ylab("Time to anoxia")
+
+init / ar / ox
+
+```
 
 exponential fitting
 
