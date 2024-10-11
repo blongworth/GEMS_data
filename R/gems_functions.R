@@ -1,5 +1,75 @@
 # Functions for reading and plotting GEMS data
 
+#' Calculate nitrogen saturation using GSW functions
+#'
+#' This function calculates nitrogen saturation in μmol/L using functions from the
+#' Gibbs SeaWater (GSW) Oceanographic Toolbox and an empirical formula for N2 solubility.
+#'
+#' @param SA Absolute Salinity (g/kg)
+#' @param CT Conservative Temperature (°C)
+#' @param p Sea pressure (dbar)
+#' @param lat Latitude (degrees)
+#'
+#' @return Nitrogen saturation (μmol/L)
+#'
+#' @examples
+#' # Example usage:
+#' SA <- 35  # Absolute Salinity (g/kg)
+#' CT <- 10  # Conservative Temperature (°C)
+#' p <- 1000  # Sea pressure (dbar)
+#' lat <- 45  # Latitude (degrees)
+#' 
+#' N2_saturation <- calculate_nitrogen_saturation(SA, CT, p, lat)
+#' cat(sprintf("Nitrogen saturation: %.2f μmol/L\n", N2_saturation))
+#'
+#' @export
+#'
+#' @importFrom gsw t_from_ct pt_from_ct p_from_z z_from_p rho
+calculate_nitrogen_saturation <- function(SA, CT, p, lat) {
+  # Calculate in-situ temperature from Conservative Temperature
+  t <- gsw::t_from_ct(SA, CT, p)
+  
+  # Calculate potential temperature
+  pt <- gsw::pt_from_ct(SA, CT)
+  
+  # Calculate absolute pressure
+  p_abs <- gsw::p_from_z(-gsw::z_from_p(p, lat), lat)
+  
+  # Calculate nitrogen solubility (ml/L) using Hamme and Emerson (2004) equation
+  # Convert temperature to Kelvin
+  T_K <- t + 273.15
+  
+  # Constants from Hamme and Emerson (2004)
+  A0 <- 6.42931
+  A1 <- 2.92704
+  A2 <- 4.32531
+  A3 <- 4.69149
+  B0 <- -7.44129e-3
+  B1 <- -8.02566e-3
+  B2 <- -1.46775e-2
+  
+  # Calculate scaled temperature and salinity
+  ts <- log((298.15 - t) / (T_K))
+  ss <- SA / 1000
+  
+  # Calculate N2 solubility in ml/L
+  lnC <- A0 + A1 * ts + A2 * ts^2 + A3 * ts^3 + ss * (B0 + B1 * ts + B2 * ts^2)
+  N2_sol_ml_L <- exp(lnC)
+  
+  # Convert from ml/L to μmol/L
+  # 1 mole of ideal gas occupies 22.4 L at STP
+  N2_sol <- N2_sol_ml_L * 1000 / 22.4
+  
+  # Adjust for pressure (simplified approximation)
+  N2_sol <- N2_sol * (1 + 0.00005 * p_abs)
+  
+  # Convert from μmol/L to μmol/kg
+  rho <- gsw::rho(SA, CT, p)
+  N2_sat <- N2_sol * (rho / 1000)
+  
+  return(N2_sat)
+}
+
 process_gems <- function(df, bg_et_range, nit_sat_umol) {
   # get mean timestamps and widen data
   df_wide <- rga_wider(df)
