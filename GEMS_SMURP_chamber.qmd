@@ -57,6 +57,8 @@ Natural nitrogen abundance and saturation concentration
 frac_abd_15 <- 0.00367
 frac_abd_14 <- 1 - frac_abd_15
 nit_sat_umol <- 600 # calculate for lab temp, sal, and pressure
+nit_sat_umol <- cal_n2_sat(31, 23) # calculate for lab temp, sal, and pressure
+ar_sat_umol <- cal_ar_sat(31, 23)
 ```
 
 Plot to find rough background values (should do this programmatically)
@@ -70,12 +72,14 @@ Backgrounds from plot
 ```{r}
 bg_29 <- 7.4E-12
 bg_30 <- 2.1E-12
+bg_30_28 <- 3.2E-3
+bg_40 <- 0.04
 ```
 
 Normalized partial pressures and molar concentrations
 
 ```{r}
-df_proc <- norm_rga(df_wide, bg_29, bg_30, nit_sat_umol = 600, t0 = label_start)
+df_proc <- norm_rga(df_wide, bg_29, bg_30, bg_30_28, bg_40, nit_sat_umol = nit_sat_umol, ar_sat_umol = ar_sat_umol, t0 = label_start)
 ```
 
 time of oxygen minimum
@@ -95,6 +99,15 @@ df_proc %>%
   dygraph()
 ```
 
+Argon concentration. Use slope to calculate diffusive loss.
+
+```{r}
+df_proc %>% 
+  filter(mass_40_28 < 0.1) %>% 
+  select(et, umol_40) %>% 
+  dygraph()
+```
+
 ```{r}
 ar <- df_proc %>% 
   select(et, mass_40_28) %>% 
@@ -108,10 +121,17 @@ Ar loss rates are normalized to N2, but uncalibrated for now.
 
 Ar loss rate: `r ar_loss_rate_sed_closed`
 
+```{r}
+df_proc %>% 
+  mutate(mass_29_28 = mass_29/mass_28,
+         mass_30_28 = mass_30/mass_28) |> 
+  select(et, mass_29_28, mass_30_28) %>% 
+  dygraph()
+```
 
 ```{r}
 df_proc %>% 
-  select(et, umol_30) %>% 
+  select(et, umol_30_new, umol_30) %>% 
   dygraph()
 ```
 

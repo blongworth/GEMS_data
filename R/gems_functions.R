@@ -5,39 +5,22 @@
 #' This function calculates nitrogen saturation in μmol/L using functions from the
 #' Gibbs SeaWater (GSW) Oceanographic Toolbox and an empirical formula for N2 solubility.
 #'
-#' @param SA Absolute Salinity (g/kg)
-#' @param CT Conservative Temperature (°C)
-#' @param p Sea pressure (dbar)
-#' @param lat Latitude (degrees)
+#' @param sal Salinity (PSU)
+#' @param temp Temperature (°C)
 #'
-#' @return Nitrogen saturation (μmol/L)
+#' @return Nitrogen saturation (μmol/kg)
 #'
 #' @examples
-#' # Example usage:
-#' SA <- 35  # Absolute Salinity (g/kg)
-#' CT <- 10  # Conservative Temperature (°C)
-#' p <- 1000  # Sea pressure (dbar)
-#' lat <- 45  # Latitude (degrees)
 #' 
-#' N2_saturation <- calculate_nitrogen_saturation(SA, CT, p, lat)
-#' cat(sprintf("Nitrogen saturation: %.2f μmol/L\n", N2_saturation))
-#'
+#' sat <- calculate_nitrogen_saturation(35, 10)
+#' sat
+#' all.equal(sat, 500.885)
+#' 
 #' @export
-#'
-#' @importFrom gsw t_from_ct pt_from_ct p_from_z z_from_p rho
-calculate_nitrogen_saturation <- function(SA, CT, p, lat) {
-  # Calculate in-situ temperature from Conservative Temperature
-  t <- gsw::t_from_ct(SA, CT, p)
-  
-  # Calculate potential temperature
-  pt <- gsw::pt_from_ct(SA, CT)
-  
-  # Calculate absolute pressure
-  p_abs <- gsw::p_from_z(-gsw::z_from_p(p, lat), lat)
-  
+cal_n2_sat <- function(sal, temp) {
   # Calculate nitrogen solubility (ml/L) using Hamme and Emerson (2004) equation
-  # Convert temperature to Kelvin
-  T_K <- t + 273.15
+  # scaled temp
+  ts <- log((298.15 - temp)/(273.15 + temp))
   
   # Constants from Hamme and Emerson (2004)
   A0 <- 6.42931
@@ -48,14 +31,32 @@ calculate_nitrogen_saturation <- function(SA, CT, p, lat) {
   B1 <- -8.02566e-3
   B2 <- -1.46775e-2
   
-  # Calculate scaled temperature and salinity
-  ts <- log((298.15 - t) / (T_K))
-  ss <- SA / 1000
+  # Calculate N2 solubility in umol/kg
+  lnC <- A0 + A1 * ts + A2 * ts^2 + A3 * ts^3 + sal * (B0 + B1 * ts + B2 * ts^2)
+  exp(lnC)
+}
+
+# all.equal(cal_ar_sat(35, 10), 13.4622)
+cal_ar_sat <- function(sal, temp) {
+  # Calculate argon solubility (umol/kg) using Hamme and Emerson (2004) equation
+  # scaled temp
+  ts <- log((298.15 - temp)/(273.15 + temp))
   
-  # Calculate N2 solubility in ml/L
-  lnC <- A0 + A1 * ts + A2 * ts^2 + A3 * ts^3 + ss * (B0 + B1 * ts + B2 * ts^2)
-  N2_sol_ml_L <- exp(lnC)
+  # Constants from Hamme and Emerson (2004)
+  A0 <- 2.79150
+  A1 <- 3.17609
+  A2 <- 4.13116
+  A3 <- 4.90379
+  B0 <- -6.96233e-3
+  B1 <- -7.66670e-3
+  B2 <- -1.16888e-2
   
+  # Calculate Ar solubility in umol/kg
+  lnC <- A0 + A1 * ts + A2 * ts^2 + A3 * ts^3 + sal * (B0 + B1 * ts + B2 * ts^2)
+  exp(lnC)
+}
+
+n2_umol_kg_to_umol_m <- function(n_sat_umol_kg) {
   # Convert from ml/L to μmol/L
   # 1 mole of ideal gas occupies 22.4 L at STP
   N2_sol <- N2_sol_ml_L * 1000 / 22.4
@@ -118,7 +119,14 @@ rga_wider <- function(df) {
                 values_from = pressure)
 }
 
-norm_rga <- function(df, bg_29, bg_30, nit_sat_umol, t0 = df$timestamp[1]) {
+norm_rga <- function(df, 
+                     bg_29, 
+                     bg_30, 
+                     bg_30_28,
+                     bg_40,
+                     nit_sat_umol, 
+                     ar_sat_umol,
+                     t0 = df$timestamp[1]) {
   df %>% 
     mutate(et = as.integer(timestamp - t0),
            mass_28_18 = mass_28 / mass_18,
@@ -132,7 +140,8 @@ norm_rga <- function(df, bg_29, bg_30, nit_sat_umol, t0 = df$timestamp[1]) {
            mass_30_28 = ( mass_30 - bg_30 ) / mass_28,
            # molar concentration based on nitrogen saturation
            umol_29 = mass_29_28 * nit_sat_umol,
-           umol_30 = mass_30_28 * nit_sat_umol)
+           umol_30 = mass_30_28 * nit_sat_umol,
+           umol_40 = mass_40_28 * (ar_sat_umol/bg_40))
 }
 
 read_gems <- function(file) {
