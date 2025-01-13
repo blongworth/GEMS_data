@@ -13,6 +13,33 @@ source("R/gems_functions.R")
 theme_set(theme_classic())
 ```
 
+Natural nitrogen abundance and saturation concentration
+
+```{r}
+lab_temp = 23
+lab_sal = 31
+frac_abd_15 <- 0.00367
+frac_abd_14 <- 1 - frac_abd_15
+nit_sat_umol <- cal_n2_sat(sal = lab_sal, temp = lab_temp) # calculate for lab temp, sal, and pressure
+ar_sat_umol <- cal_ar_sat(sal = lab_sal, temp = lab_temp)
+```
+
+# start summary dataframe
+
+```{r}
+rate_sum <- tibble(experiment = as.factor(c("sed-closed", "sed-open", "grass-closed", "grass-open", "sed-closed", "sed-open", "grass-closed", "grass-open", "sed-closed", "sed-open", "grass-closed", "grass-open")),
+                   replicate = as.factor(c(1,1,1,1,2,2,2,2,3,3,3,3)),
+                   argon = NA,
+                   t_anox = c(10000, 12000,7000, 14000, 28000, 17000, 6000, 8000, 15000, 12000, 7000, 8000)/3600,
+                   t_peak = c(72000, 41000, 29000, 44000, 92000, 65000, 47000, 41000, 48000, 57000, 32000, 37000)/3600,
+                   dn_init = NA,
+                   dn_ox_min = NA,
+                   dn_max = NA,
+                   grass = c(FALSE, FALSE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE, FALSE, TRUE, FALSE), 
+                   open = c(FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE),
+                   )
+```
+
 # Chamber experiments
 
 Chamber is cut-off 1 l polyethelyne nalgene bottle.
@@ -46,19 +73,8 @@ Calculate slope and rate using Scott's method.
 
 Give each measurement loop an average timestamp and pivot to wide format.
 
-
 ```{r}
 df_wide <- rga_wider(df)
-```
-
-Natural nitrogen abundance and saturation concentration
-
-```{r}
-frac_abd_15 <- 0.00367
-frac_abd_14 <- 1 - frac_abd_15
-nit_sat_umol <- 600 # calculate for lab temp, sal, and pressure
-nit_sat_umol <- cal_n2_sat(31, 23) # calculate for lab temp, sal, and pressure
-ar_sat_umol <- cal_ar_sat(31, 23)
 ```
 
 Plot to find rough background values (should do this programmatically)
@@ -72,14 +88,18 @@ Backgrounds from plot
 ```{r}
 bg_29 <- 7.4E-12
 bg_30 <- 2.1E-12
-bg_30_28 <- 3.2E-3
+bg_40_r <- 2.5E-11
 bg_40 <- 0.04
 ```
 
 Normalized partial pressures and molar concentrations
 
 ```{r}
-df_proc <- norm_rga(df_wide, bg_29, bg_30, bg_30_28, bg_40, nit_sat_umol = nit_sat_umol, ar_sat_umol = ar_sat_umol, t0 = label_start)
+df_proc <- norm_rga(df_wide, 
+                    bg_29, bg_30, bg_40, 
+                    nit_sat_umol = nit_sat_umol, 
+                    ar_sat_umol = ar_sat_umol, 
+                    t0 = label_start)
 ```
 
 time of oxygen minimum
@@ -110,11 +130,11 @@ df_proc %>%
 
 ```{r}
 ar <- df_proc %>% 
-  select(et, mass_40_28) %>% 
+  select(et, umol_40) %>% 
   filter(et > 9000,
          et < 11000)
 
-ar_loss_rate_sed_closed <- coef(lm(mass_40_28 ~ et, data = ar))[2] * 3600 * 24
+rate_sum$argon[1] <- coef(lm(umol_40 ~ et, data = ar))[2] * 3600 * 24
 ```
 
 Ar loss rates are normalized to N2, but uncalibrated for now.
@@ -131,7 +151,7 @@ df_proc %>%
 
 ```{r}
 df_proc %>% 
-  select(et, umol_30_new, umol_30) %>% 
+  select(et, umol_30) %>% 
   dygraph()
 ```
 
@@ -197,14 +217,6 @@ df_wide <- df_ts %>%
               values_from = pressure)
 ```
 
-Natural nitrogen abundance and saturation concentration
-
-```{r}
-frac_abd_15 <- 0.00367
-frac_abd_14 <- 1 - frac_abd_15
-nit_sat_umol <- 600 # calculate for lab temp and pressure
-```
-
 Plot to find rough background values (should do this programmatically)
 
 ```{r}
@@ -216,12 +228,17 @@ Backgrounds from plot
 ```{r}
 bg_29 <- 1E-11
 bg_30 <- 5.3E-12
+bg_40 <- 0.04
 ```
 
 Normalized partial pressures and molar concentrations
 
 ```{r}
-df_proc <- norm_rga(df_wide, bg_29, bg_30, nit_sat_umol = 600, t0 = label_start)
+df_proc <- norm_rga(df_wide, 
+                    bg_29, bg_30, bg_40, 
+                    nit_sat_umol = nit_sat_umol, 
+                    ar_sat_umol = ar_sat_umol, 
+                    t0 = label_start)
 ```
 
 time of oxygen minimum
@@ -233,6 +250,13 @@ df_proc %>%
 ```
 
 Nitrogen normalized argon. Use slope to calculate diffusive loss.
+
+```{r}
+df_proc %>% 
+  select(et, mass_40_28) %>% 
+  filter(mass_40_28 < 0.1) %>% 
+  dygraph()
+```
 
 ```{r}
 df_proc %>% 
@@ -301,14 +325,6 @@ df <- read_gems("data/GEMS_tests/SerialCapture/GEMS_2024-08-21_chamber_grass_ope
 df_wide <- rga_wider(df)
 ```
 
-Natural nitrogen abundance and saturation concentration
-
-```{r}
-frac_abd_15 <- 0.00367
-frac_abd_14 <- 1 - frac_abd_15
-nit_sat_umol <- 600 # calculate for lab temp, sal, and pressure
-```
-
 Plot to find rough background values (should do this programmatically)
 
 ```{r}
@@ -325,7 +341,11 @@ bg_30 <- 2.3E-12
 Normalized partial pressures and molar concentrations
 
 ```{r}
-df_proc <- norm_rga(df_wide, bg_29, bg_30, nit_sat_umol = 600, t0 = label_start)
+df_proc <- norm_rga(df_wide, 
+                    bg_29, bg_30, bg_40, 
+                    nit_sat_umol = nit_sat_umol, 
+                    ar_sat_umol = ar_sat_umol, 
+                    t0 = label_start)
 ```
 
 time of oxygen minimum
@@ -400,14 +420,6 @@ df <- read_gems("data/GEMS_tests/SerialCapture/GEMS_2024-08-22_chamber_grass_clo
 df_wide <- rga_wider(df)
 ```
 
-Natural nitrogen abundance and saturation concentration
-
-```{r}
-frac_abd_15 <- 0.00367
-frac_abd_14 <- 1 - frac_abd_15
-nit_sat_umol <- 600 # calculate for lab temp, sal, and pressure
-```
-
 Plot to find rough background values (should do this programmatically)
 
 ```{r}
@@ -424,7 +436,11 @@ bg_30 <- 5.2E-12
 Normalized partial pressures and molar concentrations
 
 ```{r}
-df_proc <- norm_rga(df_wide, bg_29, bg_30, nit_sat_umol = 600, t0 = label_start)
+df_proc <- norm_rga(df_wide, 
+                    bg_29, bg_30, bg_40, 
+                    nit_sat_umol = nit_sat_umol, 
+                    ar_sat_umol = ar_sat_umol, 
+                    t0 = label_start)
 ```
 
 time of oxygen minimum
@@ -513,14 +529,6 @@ Give each measurement loop an average timestamp and pivot to wide format.
 df_wide <- rga_wider(df)
 ```
 
-Natural nitrogen abundance and saturation concentration
-
-```{r}
-frac_abd_15 <- 0.00367
-frac_abd_14 <- 1 - frac_abd_15
-nit_sat_umol <- 600 # calculate for lab temp, sal, and pressure
-```
-
 Plot to find rough background values (should do this programmatically)
 
 ```{r}
@@ -537,7 +545,11 @@ bg_30 <- 5.6E-12
 Normalized partial pressures and molar concentrations
 
 ```{r}
-df_proc <- norm_rga(df_wide, bg_29, bg_30, nit_sat_umol = 600, t0 = label_start)
+df_proc <- norm_rga(df_wide, 
+                    bg_29, bg_30, bg_40, 
+                    nit_sat_umol = nit_sat_umol, 
+                    ar_sat_umol = ar_sat_umol, 
+                    t0 = label_start)
 ```
 
 time of oxygen minimum
@@ -626,14 +638,6 @@ Give each measurement loop an average timestamp and pivot to wide format.
 df_wide <- rga_wider(df)
 ```
 
-Natural nitrogen abundance and saturation concentration
-
-```{r}
-frac_abd_15 <- 0.00367
-frac_abd_14 <- 1 - frac_abd_15
-nit_sat_umol <- 600 # calculate for lab temp, sal, and pressure
-```
-
 Plot to find rough background values (should do this programmatically)
 
 ```{r}
@@ -650,7 +654,11 @@ bg_30 <- 5.6E-12
 Normalized partial pressures and molar concentrations
 
 ```{r}
-df_proc <- norm_rga(df_wide, bg_29, bg_30, nit_sat_umol = 600, t0 = label_start)
+df_proc <- norm_rga(df_wide, 
+                    bg_29, bg_30, bg_40, 
+                    nit_sat_umol = nit_sat_umol, 
+                    ar_sat_umol = ar_sat_umol, 
+                    t0 = label_start)
 ```
 
 time of oxygen minimum
@@ -741,14 +749,6 @@ Give each measurement loop an average timestamp and pivot to wide format.
 df_wide <- rga_wider(df)
 ```
 
-Natural nitrogen abundance and saturation concentration
-
-```{r}
-frac_abd_15 <- 0.00367
-frac_abd_14 <- 1 - frac_abd_15
-nit_sat_umol <- 600 # calculate for lab temp, sal, and pressure
-```
-
 Plot to find rough background values (should do this programmatically)
 
 ```{r}
@@ -765,7 +765,11 @@ bg_30 <- 5.6E-12
 Normalized partial pressures and molar concentrations
 
 ```{r}
-df_proc <- norm_rga(df_wide, bg_29, bg_30, nit_sat_umol = 600, t0 = label_start)
+df_proc <- norm_rga(df_wide, 
+                    bg_29, bg_30, bg_40, 
+                    nit_sat_umol = nit_sat_umol, 
+                    ar_sat_umol = ar_sat_umol, 
+                    t0 = label_start)
 ```
 
 time of oxygen minimum
@@ -857,14 +861,6 @@ Give each measurement loop an average timestamp and pivot to wide format.
 df_wide <- rga_wider(df)
 ```
 
-Natural nitrogen abundance and saturation concentration
-
-```{r}
-frac_abd_15 <- 0.00367
-frac_abd_14 <- 1 - frac_abd_15
-nit_sat_umol <- 600 # calculate for lab temp, sal, and pressure
-```
-
 Plot to find rough background values (should do this programmatically)
 
 ```{r}
@@ -881,7 +877,11 @@ bg_30 <- 5.0E-12
 Normalized partial pressures and molar concentrations
 
 ```{r}
-df_proc <- norm_rga(df_wide, bg_29, bg_30, nit_sat_umol = 600, t0 = label_start)
+df_proc <- norm_rga(df_wide, 
+                    bg_29, bg_30, bg_40, 
+                    nit_sat_umol = nit_sat_umol, 
+                    ar_sat_umol = ar_sat_umol, 
+                    t0 = label_start)
 ```
 
 time of oxygen minimum
@@ -974,14 +974,6 @@ Give each measurement loop an average timestamp and pivot to wide format.
 df_wide <- rga_wider(df)
 ```
 
-Natural nitrogen abundance and saturation concentration
-
-```{r}
-frac_abd_15 <- 0.00367
-frac_abd_14 <- 1 - frac_abd_15
-nit_sat_umol <- 600 # calculate for lab temp, sal, and pressure
-```
-
 Plot to find rough background values (should do this programmatically)
 
 ```{r}
@@ -998,7 +990,11 @@ bg_30 <- 4.8E-12
 Normalized partial pressures and molar concentrations
 
 ```{r}
-df_proc <- norm_rga(df_wide, bg_29, bg_30, nit_sat_umol = 600, t0 = label_start)
+df_proc <- norm_rga(df_wide, 
+                    bg_29, bg_30, bg_40, 
+                    nit_sat_umol = nit_sat_umol, 
+                    ar_sat_umol = ar_sat_umol, 
+                    t0 = label_start)
 ```
 
 time of oxygen minimum
@@ -1084,14 +1080,6 @@ Give each measurement loop an average timestamp and pivot to wide format.
 df_wide <- rga_wider(df)
 ```
 
-Natural nitrogen abundance and saturation concentration
-
-```{r}
-frac_abd_15 <- 0.00367
-frac_abd_14 <- 1 - frac_abd_15
-nit_sat_umol <- 600 # calculate for lab temp, sal, and pressure
-```
-
 Plot to find rough background values (should do this programmatically)
 
 ```{r}
@@ -1108,7 +1096,11 @@ bg_30 <- 4.7E-12
 Normalized partial pressures and molar concentrations
 
 ```{r}
-df_proc <- norm_rga(df_wide, bg_29, bg_30, nit_sat_umol = 600, t0 = label_start)
+df_proc <- norm_rga(df_wide, 
+                    bg_29, bg_30, bg_40, 
+                    nit_sat_umol = nit_sat_umol, 
+                    ar_sat_umol = ar_sat_umol, 
+                    t0 = label_start)
 ```
 
 time of oxygen minimum
@@ -1194,14 +1186,6 @@ Give each measurement loop an average timestamp and pivot to wide format.
 df_wide <- rga_wider(df)
 ```
 
-Natural nitrogen abundance and saturation concentration
-
-```{r}
-frac_abd_15 <- 0.00367
-frac_abd_14 <- 1 - frac_abd_15
-nit_sat_umol <- 600 # calculate for lab temp, sal, and pressure
-```
-
 Plot to find rough background values (should do this programmatically)
 
 ```{r}
@@ -1218,7 +1202,11 @@ bg_30 <- 4.7E-12
 Normalized partial pressures and molar concentrations
 
 ```{r}
-df_proc <- norm_rga(df_wide, bg_29, bg_30, nit_sat_umol = 600, t0 = label_start)
+df_proc <- norm_rga(df_wide, 
+                    bg_29, bg_30, bg_40, 
+                    nit_sat_umol = nit_sat_umol, 
+                    ar_sat_umol = ar_sat_umol, 
+                    t0 = label_start)
 ```
 
 time of oxygen minimum
@@ -1304,14 +1292,6 @@ Give each measurement loop an average timestamp and pivot to wide format.
 df_wide <- rga_wider(df)
 ```
 
-Natural nitrogen abundance and saturation concentration
-
-```{r}
-frac_abd_15 <- 0.00367
-frac_abd_14 <- 1 - frac_abd_15
-nit_sat_umol <- 600 # calculate for lab temp, sal, and pressure
-```
-
 Plot to find rough background values (should do this programmatically)
 
 ```{r}
@@ -1328,7 +1308,11 @@ bg_30 <- 4.7E-12
 Normalized partial pressures and molar concentrations
 
 ```{r}
-df_proc <- norm_rga(df_wide, bg_29, bg_30, nit_sat_umol = 600, t0 = label_start)
+df_proc <- norm_rga(df_wide, 
+                    bg_29, bg_30, bg_40, 
+                    nit_sat_umol = nit_sat_umol, 
+                    ar_sat_umol = ar_sat_umol, 
+                    t0 = label_start)
 ```
 
 time of oxygen minimum

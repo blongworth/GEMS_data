@@ -56,21 +56,6 @@ cal_ar_sat <- function(sal, temp) {
   exp(lnC)
 }
 
-n2_umol_kg_to_umol_m <- function(n_sat_umol_kg) {
-  # Convert from ml/L to μmol/L
-  # 1 mole of ideal gas occupies 22.4 L at STP
-  N2_sol <- N2_sol_ml_L * 1000 / 22.4
-  
-  # Adjust for pressure (simplified approximation)
-  N2_sol <- N2_sol * (1 + 0.00005 * p_abs)
-  
-  # Convert from μmol/L to μmol/kg
-  rho <- gsw::rho(SA, CT, p)
-  N2_sat <- N2_sol * (rho / 1000)
-  
-  return(N2_sat)
-}
-
 process_gems <- function(df, bg_et_range, nit_sat_umol) {
   # get mean timestamps and widen data
   df_wide <- rga_wider(df)
@@ -120,9 +105,8 @@ rga_wider <- function(df) {
 }
 
 norm_rga <- function(df, 
-                     bg_29, 
+                     bg_29, # raw background
                      bg_30, 
-                     bg_30_28,
                      bg_40,
                      nit_sat_umol, 
                      ar_sat_umol,
