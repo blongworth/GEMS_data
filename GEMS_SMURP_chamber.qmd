@@ -1593,6 +1593,52 @@ rate_sum %>%
 
 ```
 
+Ar loss corrected, init only
+
+```{r}
+rate_sum %>% 
+  select(experiment, dn_init_cor) %>% 
+  pivot_longer(c(dn_init_cor)) %>% 
+  ggplot(aes(experiment, value, fill = replicate)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "DN rate at O2 min (Ar corrected)",
+       y = "15N2 production (umol/day)")
+
+```
+
+```{r}
+ggplot(rate_sum, aes(experiment, dn_init_cor)) +
+  geom_boxplot() +
+  labs(title = "DN rate at O2 min (Ar corrected)",
+       y = "15N2 production (umol/day)")
+```
+
+```{r}
+ggplot(rate_sum, aes(grass, dn_init_cor)) +
+  geom_boxplot() +
+  labs(title = "DN rate at O2 min (Ar corrected)",
+       y = "15N2 production (umol/day)")
+```
+
+```{r}
+rate_sum |> 
+  select(experiment, replicate, grass, open, dn_rate = dn_init) |> 
+  write_csv("SMURP_DN_rates.csv")
+```
+
+Ar loss corrected
+
+```{r}
+rate_sum %>% 
+  select(experiment, dn_init_cor, dn_50_cor) %>% 
+  pivot_longer(c(dn_init_cor, dn_50_cor)) %>% 
+  ggplot(aes(experiment, value, fill = name)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Ar Loss Corrected Initial DN rate",
+       subtitle = "Initial 'even' slope and rate from t0 to 50% Ar loss",
+       y = "15N2 production (umol/day)")
+
+```
 ANOVA
 
 ```{r}
@@ -1651,40 +1697,19 @@ summary(a)
 ```
 
 ```{r}
-init <- ggplot(rate_sum, aes(experiment, norm_rate)) +
+ggplot(rate_sum, aes(experiment, norm_rate)) +
   geom_boxplot() +
-  labs(title = "DN rate at O2 min (Ar corrected)",
-       y = "15N2 production (umol/day)") +
-  theme(axis.title.x = element_blank(),  # Remove x-axis title
-    axis.text.x = element_blank())
-
-ar <- ggplot(rate_sum, aes(experiment, -argon)) +
-  geom_boxplot() +
-  ylab("Ar loss rate")
-
-ox <- ggplot(rate_sum, aes(experiment, t_anox)) +
-  geom_boxplot() +
-  ylab("Time to anoxia")
-
-init / ar / ox
-
+  labs(title = "Scaled DN rate at O2 min (Ar corrected)",
+       subtitle = "Rates scaled to a range of 0-1 by replicate",
+       y = "Scaled 15N2 production (0-1, by replicate)") 
 ```
-
-exponential fitting
-
-```{r, eval = FALSE}
-dfr <- df_proc %>% 
-  filter(et > 3000, et < 24000,
-         !is.na(umol_30)) %>% 
-  select(et, umol_30)
-
-lm_exp <- lm(log(umol_30) ~ et, data = dfr)
-
-dfr %>% 
-  mutate(exp_fit = predict(lm_exp)) %>% 
-ggplot(aes(et, umol_30)) +
-  geom_point() +
-  geom_line(aes(et, exp_fit))
-  
+```{r}
+rate_sum %>% 
+  select(experiment, norm_rate) %>% 
+  pivot_longer(c(norm_rate)) %>% 
+  ggplot(aes(experiment, value, fill = replicate)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "DN rate at O2 min (Ar corrected)",
+       y = "15N2 production (umol/day)")
 ```
 
