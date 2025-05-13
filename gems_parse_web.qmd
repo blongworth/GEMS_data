@@ -3,7 +3,7 @@ title: "Parse LECS Web"
 format: html
 editor: source
 params:
-  start_date: 2025-04-07
+  start_date: 2025-05-13
 ---
 
 Get and parse data sent to LECS website. Data from `r params$start_date` to present.
@@ -29,7 +29,8 @@ Use `start_date` parameter to limit download.
 
 ```{r}
 df_raw <- lecs_read_web(start_date = params$start_date, base_url = "https://gems.whoi.edu/GEMS_data/?timestamp=") |> 
-  filter(!str_detect(X1, "\\?[01]"))
+  filter(!str_detect(X1, "\\?[01]"),
+         !str_detect(X1, "V:"))
 ```
 
 Add row, type, send and line number
@@ -106,7 +107,7 @@ adv_data_mean <- adv_data_qc |>
             N = n())
 ```
 
-#### Last post was `r max(post_times$timestamp)`
+#### Last post was `r max(post_times$timestamp, na.rm = TRUE)`
 
 How many status lines are in the wrong year?
 
@@ -118,7 +119,7 @@ dt <- status |>
   select(send, lander_time = timestamp) |> 
   inner_join(ct) |> 
   mutate(td = as.numeric(difftime(post_time, lander_time, units = 'secs'))) |> 
-  filter(td < 13000 | td > 20000) 
+  filter(td < 0 | td > 600) 
 
 if (nrow(dt > 0)) {
   dt |> 
