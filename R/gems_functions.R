@@ -101,7 +101,7 @@ rga_wider <- function(df) {
     ungroup() %>% 
     select(timestamp = cycle_ts, mass, pressure, experiment) %>% 
     pivot_wider(names_from = mass, names_prefix = "mass_",
-                values_from = pressure)
+                values_from = pressure, values_fn = mean)
 }
 
 norm_rga <- function(df, 
@@ -140,6 +140,21 @@ read_gems <- function(file) {
            pressure = current/0.0801,
            timestamp = lubridate::make_datetime(year, month, day, hour, min, sec, 
                                                 tz = "America/New_York")) |> 
+    select(timestamp, mass, current, pressure)
+}
+
+read_gems_isots <- function(file) {
+  raw_file <- read_lines(file)
+  gems_raw <- raw_file[str_starts(raw_file, "R:")]
+  gems_data <- str_remove(gems_raw, "^R:")
+  read_csv(I(gems_data),
+           col_names = c("timestamp", "mass", "current")) |> 
+    mutate(mass = as.factor(mass),
+           current = current*1E-16,
+           pressure = current/0.0801,
+           #timestamp = lubridate::make_datetime(year, month, day, hour, min, sec, 
+           #                                     tz = "America/New_York")
+          ) |> 
     select(timestamp, mass, current, pressure)
 }
 

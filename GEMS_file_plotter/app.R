@@ -5,7 +5,7 @@ library(shinyFiles)
 source("../R/gems_functions.R")
 
 get_data <- function(filename) {
-  read_gems(filename) %>% 
+  read_gems_isots(filename) %>%
     mutate(experiment = "test") %>% 
     rga_wider() %>% 
     select(-experiment)
