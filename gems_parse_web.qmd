@@ -3,7 +3,7 @@ title: "Parse LECS Web"
 format: html
 editor: source
 params:
-  start_date: 2025-05-13
+  start_date: 2025-05-23
 ---
 
 Get and parse data sent to LECS website. Data from `r params$start_date` to present.
@@ -46,6 +46,27 @@ post_times <- lecs_post_times(df)
 rga <- gems_rga_data(df)
 status <- lecs_status_data(df)
 adv_data <- lecs_adv_data(df)
+turbo <- gems_turbo_status(df)
+```
+
+reshape rga data
+
+```{r}
+rga <- rga |> 
+  mutate(mass = as.factor(mass),
+           current = current*1E-16,
+           pressure = current/0.0801)
+
+rga_wide <- rga |> 
+  group_by(send) |> 
+    mutate(cycle = cumsum(mass == 18)) %>% 
+    group_by(send, cycle) %>% 
+    mutate(cycle_ts = mean(timestamp)) %>% 
+    ungroup() %>% 
+    select(send, timestamp = cycle_ts, mass, pressure) %>% 
+    pivot_wider(names_from = mass, names_prefix = "mass_",
+                values_from = pressure)
+  
 ```
 
 Filter bad data before timestamping adv data
@@ -64,7 +85,7 @@ status_qc <- status |>
   mutate(orig_timestamp = timestamp,
          lander_timestamp_cor = correct_status_timestamp_jitter(orig_timestamp, adv_timestamp),
          adv_timestamp_cor = correct_status_timestamp_adv(orig_timestamp, adv_timestamp),
-         timestamp = adv_timestamp_cor)
+         timestamp = lander_timestamp_cor)
 
 adv_data_qc <- adv_data |> 
   filter(count >= 0, count < 256, 
@@ -90,6 +111,19 @@ status_mean <- status_qc |>
   select(send, timestamp, bat, heading, pitch, roll) |> 
   group_by(send) |> 
   summarise(across(c(timestamp, bat, heading, pitch, roll), 
+                   list(mean = ~ mean(.x, na.rm = TRUE), 
+                        sd = ~ sd(.x, na.rm = TRUE))))
+
+turbo_mean <- turbo |> 
+  select(send, timestamp, speed, power, voltage, e_temp, p_temp, m_temp, filament) |> 
+  group_by(send) |> 
+  summarise(across(everything(), 
+                   list(mean = ~ mean(.x, na.rm = TRUE), 
+                        sd = ~ sd(.x, na.rm = TRUE))))
+
+rga_mean <- rga_wide |> 
+  group_by(send) |> 
+  summarise(across(everything(),
                    list(mean = ~ mean(.x, na.rm = TRUE), 
                         sd = ~ sd(.x, na.rm = TRUE))))
 
@@ -132,14 +166,66 @@ if (nrow(dt > 0)) {
 }
 ```
 
+
 ### Battery
 
 ```{r}
-status_mean |> 
+adv_bat <- status_mean |> 
   plot_mean(bat_mean, bat_sd) +
   geom_smooth() +
-  labs(title = "Battery Voltage",
+  labs(title = "ADV Voltage (nom: 12V)",
        y = "Volts")
+turbo_bat <- turbo_mean |> 
+  plot_mean(voltage_mean, voltage_sd) +
+  geom_smooth() +
+  labs(title = "Turbo Voltage (nom: 24V)",
+       y = "Volts")
+adv_bat / turbo_bat
+```
+
+### Turbo
+
+```{r}
+turbo_s <- turbo_mean |> 
+  plot_mean(speed_mean, speed_sd) +
+  geom_smooth() +
+  labs(title = "Turbo speed",
+       y = "Hz")
+turbo_p <- turbo_mean |>
+  plot_mean(power_mean, power_sd) +
+  geom_smooth() +
+  labs(title = "Turbo power",
+       y = "W")
+turbo_s / turbo_p
+```
+
+```{r}
+turbo_mean |> 
+  select(timestamp_mean, e_temp_mean, p_temp_mean, m_temp_mean) |> 
+  pivot_longer(ends_with("temp_mean")) |>
+  ggplot(aes(timestamp_mean, value, color = name)) +
+  geom_smooth(aes(timestamp_mean, value), se = FALSE) +
+  geom_smooth(aes(timestamp_mean, value, color = NULL)) +
+  geom_point() +
+  labs(title = "Turbo temperature",
+       x = NULL,
+       y = "Degrees C")
+  
+```
+
+### RGA
+
+```{r}
+rga_mean |> 
+  select(timestamp_mean, mass_18_mean, mass_28_mean, mass_40_mean) |> 
+  pivot_longer(starts_with("mass")) |>
+  ggplot(aes(timestamp_mean, value, color = name)) +
+  geom_smooth(aes(timestamp_mean, value), se = FALSE) +
+  geom_smooth(aes(timestamp_mean, value, color = NULL)) +
+  geom_point() +
+  labs(title = "RGA",
+       x = NULL,
+       y = "Pressure (Torr)")
 ```
 
 
