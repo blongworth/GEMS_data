@@ -7,3 +7,5 @@ data/
 *.html
 .venv/
 .DS_Store
+
+/.quarto/

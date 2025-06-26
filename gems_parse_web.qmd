@@ -16,6 +16,7 @@ library(tidyverse)
 library(lubridate)
 library(gemstools)
 library(patchwork)
+library(plotly)
 
 theme_set(theme_bw())
 options(digits.secs=3)
@@ -30,8 +31,7 @@ Use `start_date` parameter to limit download.
 ```{r}
 df_raw <- lecs_read_web(start_date = params$start_date, base_url = "https://gems.whoi.edu/GEMS_data/?timestamp=") |> 
   filter(!str_detect(X1, "\\?[01]"),
-         !str_detect(X1, "V:"),
-         !str_detect(X1, "T:"))
+         !str_detect(X1, "V:"))
 ```
 
 Add row, type, send and line number
@@ -48,6 +48,7 @@ rga <- gems_rga_data(df)
 status <- lecs_status_data(df)
 adv_data <- lecs_adv_data(df)
 turbo <- gems_turbo_status(df)
+temp <- gems_temp_data(df)
 ```
 
 reshape rga data
@@ -55,19 +56,25 @@ reshape rga data
 ```{r}
 rga <- rga |> 
   mutate(mass = as.factor(mass),
-           current = current*1E-16,
-           pressure = current/0.0801)
+         current = current*1E-16,
+         pressure = current/0.0801)
 
+# Add inlet column to rga_wide
 rga_wide <- rga |> 
   group_by(send) |> 
-    mutate(cycle = cumsum(mass == 18)) %>% 
-    group_by(send, cycle) %>% 
-    mutate(cycle_ts = mean(timestamp)) %>% 
-    ungroup() %>% 
-    select(send, timestamp = cycle_ts, mass, pressure) %>% 
-    pivot_wider(names_from = mass, names_prefix = "mass_",
-                values_from = pressure)
-  
+  mutate(cycle = cumsum(mass == 18)) %>% 
+  group_by(send, cycle) %>% 
+  mutate(cycle_ts = mean(timestamp)) %>% 
+  ungroup() %>% 
+  select(send, timestamp = cycle_ts, mass, pressure) %>% 
+  pivot_wider(names_from = mass, names_prefix = "mass_",
+              values_from = pressure) %>%
+  mutate(
+    # Calculate minutes since the hour
+    min_since_hour = as.numeric(difftime(timestamp, floor_date(timestamp, "hour"), units = "mins")),
+    # Determine inlet state: "low" for first 7.5 min, then alternate every 7.5 min
+    inlet = ifelse(floor(min_since_hour / 7.5) %% 2 == 0, "low", "high")
+  )
 ```
 
 Filter bad data before timestamping adv data
@@ -112,6 +119,12 @@ status_mean <- status_qc |>
   select(send, timestamp, bat, heading, pitch, roll) |> 
   group_by(send) |> 
   summarise(across(c(timestamp, bat, heading, pitch, roll), 
+                   list(mean = ~ mean(.x, na.rm = TRUE), 
+                        sd = ~ sd(.x, na.rm = TRUE))))
+
+temp_mean <- temp |> 
+  group_by(send) |>
+  summarise(across(everything(), 
                    list(mean = ~ mean(.x, na.rm = TRUE), 
                         sd = ~ sd(.x, na.rm = TRUE))))
 
@@ -165,6 +178,17 @@ if (nrow(dt > 0)) {
 } else {
   "No incorrect lander timestamps!"
 }
+```
+### Teensy Temp
+
+Junction temp of Surface teensy. Runs at 50C at room temp. >95C kills teensies.
+
+```{r}
+temp_mean |> 
+  plot_mean(temp_mean, temp_sd) +
+  geom_smooth() +
+  labs(title = "Teensy temperature",
+       y = "Degrees C")
 ```
 
 
@@ -230,6 +254,36 @@ rga_mean |>
 ```
 
 
+```{r}
+gg <- rga_wide |> 
+  filter(mass_32 < 2e-9) |> 
+  select(timestamp,mass_32) |> 
+  pivot_longer(starts_with("mass")) |>
+  ggplot(aes(timestamp, value, color = inlet)) +
+  geom_smooth(aes(timestamp, value), se = FALSE) +
+  geom_point(size = .5) +
+  labs(title = "RGA",
+       x = NULL,
+       y = "Pressure (Torr)")
+
+ggplotly(gg)
+```
+
+
+```{r}
+gg <- rga_wide |> 
+  filter(mass_44 < 1e-10) |> 
+  select(timestamp,mass_44) |> 
+  pivot_longer(starts_with("mass")) |>
+  ggplot(aes(timestamp, value, color = name)) +
+  geom_smooth(aes(timestamp, value), se = FALSE) +
+  geom_point(size = .5) +
+  labs(title = "CO2",
+       x = NULL,
+       y = "Pressure (Torr)")
+
+ggplotly(gg)
+```
 ### Pressure/Depth
 
 ```{r}
