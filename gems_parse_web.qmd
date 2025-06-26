@@ -257,7 +257,7 @@ rga_mean |>
 ```{r}
 gg <- rga_wide |> 
   filter(mass_32 < 2e-9) |> 
-  select(timestamp,mass_32) |> 
+  select(timestamp,mass_32, inlet) |> 
   pivot_longer(starts_with("mass")) |>
   ggplot(aes(timestamp, value, color = inlet)) +
   geom_smooth(aes(timestamp, value), se = FALSE) +
