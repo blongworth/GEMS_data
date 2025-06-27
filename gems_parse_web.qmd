@@ -68,7 +68,8 @@ rga_wide <- rga |>
   ungroup() %>% 
   select(send, timestamp = cycle_ts, mass, pressure) %>% 
   pivot_wider(names_from = mass, names_prefix = "mass_",
-              values_from = pressure) %>%
+              values_from = pressure,
+              values_fn = mean) %>%
   mutate(
     # Calculate minutes since the hour
     min_since_hour = as.numeric(difftime(timestamp, floor_date(timestamp, "hour"), units = "mins")),
@@ -260,7 +261,8 @@ gg <- rga_wide |>
   select(timestamp,mass_32, inlet) |> 
   pivot_longer(starts_with("mass")) |>
   ggplot(aes(timestamp, value, color = inlet)) +
-  geom_smooth(aes(timestamp, value), se = FALSE) +
+  #geom_smooth(aes(timestamp, value), se = FALSE) +
+  geom_line(size = .5) +
   geom_point(size = .5) +
   labs(title = "RGA",
        x = NULL,
